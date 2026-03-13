@@ -1,6 +1,6 @@
 # xSeek CLI
 
-AI visibility from your terminal.
+AI visibility from your terminal. Built for Claude Code.
 
 ## Install
 
@@ -29,6 +29,17 @@ xseek prompts yoursite.com            # List prompts
 ```
 
 All commands support `--format json` for scripting.
+
+## Claude Code
+
+The xSeek CLI is designed to work as a tool that Claude Code can call directly. Pair it with [GEO/SEO Skills](https://www.xseek.io/products/geo-seo-skills) for fully autonomous AI visibility workflows:
+
+```
+$ claude
+> /aeo-audit
+```
+
+Claude Code uses the CLI under the hood to pull leaderboard data, find content gaps, and deliver prioritized action lists.
 
 ## Release
 
