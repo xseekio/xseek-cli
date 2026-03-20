@@ -8,17 +8,33 @@ import (
 )
 
 type Opportunity struct {
-	Query                string       `json:"query"`
-	Frequency            int          `json:"frequency"`
-	Models               []string     `json:"models"`
-	BusinessValue        string       `json:"businessValue"`
-	SuggestedContentType string       `json:"suggestedContentType"`
-	Competitors          []Competitor `json:"competitors"`
+	Query                string           `json:"query"`
+	Frequency            int              `json:"frequency"`
+	Models               []string         `json:"models"`
+	BusinessValue        string           `json:"businessValue"`
+	SuggestedContentType string           `json:"suggestedContentType"`
+	Competitors          []Competitor     `json:"competitors"`
+	CompetitorDomains    []string         `json:"competitorDomains"`
+	RankingArticles      []RankingArticle `json:"rankingArticles"`
 }
 
 type Competitor struct {
 	Company string `json:"company"`
 	Count   int    `json:"count"`
+}
+
+type RankingArticle struct {
+	URL    string `json:"url"`
+	Title  string `json:"title"`
+	Domain string `json:"domain"`
+	Count  int    `json:"count"`
+}
+
+type OpportunitiesResponse struct {
+	Success bool `json:"success"`
+	Data    struct {
+		Opportunities []Opportunity `json:"opportunities"`
+	} `json:"data"`
 }
 
 func ListOpportunities(websiteID string) {
@@ -29,14 +45,16 @@ func ListOpportunities(websiteID string) {
 
 	websiteID = resolveWebsiteID(client, websiteID)
 
-	var opps []Opportunity
-	err = client.GetJSON(fmt.Sprintf("/websites/%s/opportunities", websiteID), nil, &opps)
+	var result OpportunitiesResponse
+	err = client.GetJSON(fmt.Sprintf("/websites/%s/opportunities", websiteID), nil, &result)
 	if err != nil {
 		exitError(err.Error())
 	}
 
+	opps := result.Data.Opportunities
+
 	if isJSON() {
-		printJSON(opps)
+		printJSON(result)
 		return
 	}
 
@@ -68,9 +86,20 @@ func ListOpportunities(websiteID string) {
 		if len(opp.Competitors) > 0 {
 			names := make([]string, 0, len(opp.Competitors))
 			for _, c := range opp.Competitors {
-				names = append(names, fmt.Sprintf("%s (%d)", c.Company, c.Count))
+				if c.Count > 0 {
+					names = append(names, fmt.Sprintf("%s (%d)", c.Company, c.Count))
+				}
 			}
-			fmt.Printf("   Competitors: %s\n", strings.Join(names, ", "))
+			if len(names) > 0 {
+				fmt.Printf("   Competitors: %s\n", strings.Join(names, ", "))
+			}
+		}
+
+		if len(opp.RankingArticles) > 0 {
+			fmt.Printf("   Ranking articles:\n")
+			for _, a := range opp.RankingArticles {
+				fmt.Printf("     - %s (%d citations)\n", a.URL, a.Count)
+			}
 		}
 	}
 }

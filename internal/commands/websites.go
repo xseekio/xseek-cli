@@ -13,14 +13,20 @@ type Website struct {
 	CompanyName string `json:"companyName"`
 }
 
+type WebsitesResponse struct {
+	Success bool      `json:"success"`
+	Data    []Website `json:"data"`
+}
+
 func ListWebsites() {
 	client, err := api.NewClient()
 	if err != nil {
 		exitError(err.Error())
 	}
 
-	var websites []Website
-	err = client.GetJSON("/websites", nil, &websites)
+	var result WebsitesResponse
+	err = client.GetJSON("/websites", nil, &result)
+	websites := result.Data
 	if err != nil {
 		exitError(err.Error())
 	}
