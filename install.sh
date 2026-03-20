@@ -5,7 +5,8 @@ set -e
 # Usage: curl -fsSL https://cli.xseek.io/install.sh | sh
 
 REPO="xseekio/xseek-cli"
-INSTALL_DIR="/usr/local/bin"
+XSEEK_HOME="${HOME}/.xseek"
+INSTALL_DIR="${XSEEK_HOME}/bin"
 BINARY="xseek"
 
 # Detect OS and architecture
@@ -41,6 +42,25 @@ get_latest_version() {
   fi
 }
 
+# Add ~/.xseek/bin to PATH in shell profile
+add_to_path() {
+  SHELL_NAME="$(basename "$SHELL")"
+  case "$SHELL_NAME" in
+    zsh)  PROFILE="${HOME}/.zshrc" ;;
+    bash) PROFILE="${HOME}/.bashrc" ;;
+    *)    PROFILE="${HOME}/.profile" ;;
+  esac
+
+  if [ -f "$PROFILE" ] && grep -q "${INSTALL_DIR}" "$PROFILE" 2>/dev/null; then
+    return 0
+  fi
+
+  echo "" >> "$PROFILE"
+  echo "# xSeek CLI" >> "$PROFILE"
+  echo "export PATH=\"${INSTALL_DIR}:\$PATH\"" >> "$PROFILE"
+  echo "  Added ${INSTALL_DIR} to PATH in ${PROFILE}"
+}
+
 main() {
   echo "Installing xSeek CLI..."
   echo ""
@@ -53,8 +73,11 @@ main() {
 
   echo "  Platform:  ${OS}/${ARCH}"
   echo "  Version:   v${VERSION}"
-  echo "  URL:       ${URL}"
+  echo "  Install:   ${INSTALL_DIR}/${BINARY}"
   echo ""
+
+  # Create ~/.xseek/bin
+  mkdir -p "${INSTALL_DIR}"
 
   # Download to temp directory
   TMP_DIR=$(mktemp -d)
@@ -66,22 +89,23 @@ main() {
   echo "Extracting..."
   tar -xzf "${TMP_DIR}/${FILENAME}" -C "$TMP_DIR"
 
-  echo "Installing to ${INSTALL_DIR}/${BINARY}..."
-  if [ -w "$INSTALL_DIR" ]; then
-    mv "${TMP_DIR}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
-  else
-    sudo mv "${TMP_DIR}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
-  fi
+  echo "Installing..."
+  mv "${TMP_DIR}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
   chmod +x "${INSTALL_DIR}/${BINARY}"
 
+  # Add to PATH if not already there
+  add_to_path
+
   echo ""
-  echo "✓ xSeek CLI v${VERSION} installed successfully!"
+  echo "  xSeek CLI v${VERSION} installed successfully!"
   echo ""
-  echo "Get started:"
-  echo "  export XSEEK_API_KEY=your_api_key"
-  echo "  xseek scan robots yoursite.com"
+  echo "  Restart your terminal or run:"
+  echo "    export PATH=\"${INSTALL_DIR}:\$PATH\""
   echo ""
-  echo "Get your API key at: https://www.xseek.io/dashboard/api-keys"
+  echo "  Then authenticate:"
+  echo "    xseek login YOUR_API_KEY"
+  echo ""
+  echo "  Get your API key at: https://www.xseek.io/dashboard/api-keys"
 }
 
 main
