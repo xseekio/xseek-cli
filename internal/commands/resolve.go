@@ -16,11 +16,12 @@ func resolveWebsiteID(client *api.Client, input string) string {
 	}
 
 	// Otherwise, try to match by URL
-	var websites []Website
-	err := client.GetJSON("/websites", nil, &websites)
+	var result WebsitesResponse
+	err := client.GetJSON("/websites", nil, &result)
 	if err != nil {
 		exitError(fmt.Sprintf("failed to resolve website: %s", err))
 	}
+	websites := result.Data
 
 	input = strings.TrimPrefix(input, "https://")
 	input = strings.TrimPrefix(input, "http://")

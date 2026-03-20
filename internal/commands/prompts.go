@@ -15,7 +15,8 @@ type Prompt struct {
 }
 
 type PromptsResponse struct {
-	Prompts []Prompt `json:"prompts"`
+	Success bool     `json:"success"`
+	Data    []Prompt `json:"data"`
 }
 
 func ListPrompts(websiteID string) {
@@ -32,19 +33,21 @@ func ListPrompts(websiteID string) {
 		exitError(err.Error())
 	}
 
+	prompts := result.Data
+
 	if isJSON() {
-		printJSON(result)
+		printJSON(prompts)
 		return
 	}
 
-	if len(result.Prompts) == 0 {
+	if len(prompts) == 0 {
 		fmt.Println("No prompts found for this website.")
 		return
 	}
 
 	fmt.Printf("%-38s  %-30s  %s\n", "ID", "Name", "Status")
 	fmt.Println(strings.Repeat("─", 80))
-	for _, p := range result.Prompts {
+	for _, p := range prompts {
 		name := p.Name
 		if len(name) > 28 {
 			name = name[:25] + "..."

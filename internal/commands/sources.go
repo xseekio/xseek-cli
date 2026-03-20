@@ -8,14 +8,24 @@ import (
 )
 
 type Source struct {
-	URL    string `json:"url"`
-	Domain string `json:"domain"`
-	Title  string `json:"title"`
-	Count  int    `json:"count"`
+	URL              string  `json:"url"`
+	Domain           string  `json:"domain"`
+	Title            string  `json:"title"`
+	CitationCount    int     `json:"citationCount"`
+	CitationPercentage float64 `json:"citationPercentage"`
 }
 
 type SourcesResponse struct {
-	Sources []Source `json:"sources"`
+	Success bool `json:"success"`
+	Data    struct {
+		Sources    []Source `json:"sources"`
+		Pagination struct {
+			Page       int `json:"page"`
+			PageSize   int `json:"pageSize"`
+			Total      int `json:"total"`
+			TotalPages int `json:"totalPages"`
+		} `json:"pagination"`
+	} `json:"data"`
 }
 
 func ListSources(websiteID string) {
@@ -32,12 +42,14 @@ func ListSources(websiteID string) {
 		exitError(err.Error())
 	}
 
+	sources := result.Data.Sources
+
 	if isJSON() {
-		printJSON(result)
+		printJSON(sources)
 		return
 	}
 
-	if len(result.Sources) == 0 {
+	if len(sources) == 0 {
 		fmt.Println("No sources found yet.")
 		return
 	}
@@ -46,11 +58,12 @@ func ListSources(websiteID string) {
 	fmt.Println(strings.Repeat("─", 70))
 	fmt.Printf("  %-5s %-30s %s\n", "Count", "Domain", "URL")
 	fmt.Println(strings.Repeat("─", 70))
-	for _, s := range result.Sources {
+	for _, s := range sources {
 		url := s.URL
 		if len(url) > 50 {
 			url = url[:47] + "..."
 		}
-		fmt.Printf("  %-5d %-30s %s\n", s.Count, s.Domain, url)
+		fmt.Printf("  %-5d %-30s %s\n", s.CitationCount, s.Domain, url)
 	}
+	fmt.Printf("\nShowing %d of %d sources\n", len(sources), result.Data.Pagination.Total)
 }

@@ -8,13 +8,19 @@ import (
 )
 
 type LeaderboardEntry struct {
-	Company  string `json:"company"`
-	Mentions int    `json:"mentions"`
-	Rank     int    `json:"rank"`
+	Company      string `json:"company"`
+	Mentions     int    `json:"mentions"`
+	Rank         int    `json:"rank"`
+	IsCompetitor bool   `json:"isCompetitor"`
 }
 
 type LeaderboardResponse struct {
-	Leaderboard []LeaderboardEntry `json:"leaderboard"`
+	Success bool               `json:"success"`
+	Data    []LeaderboardEntry `json:"data"`
+	Meta    struct {
+		LastDays      int `json:"lastDays"`
+		TotalMentions int `json:"totalMentions"`
+	} `json:"meta"`
 }
 
 func ReportLeaderboard(websiteID string) {
@@ -31,19 +37,21 @@ func ReportLeaderboard(websiteID string) {
 		exitError(err.Error())
 	}
 
+	leaderboard := result.Data
+
 	if isJSON() {
-		printJSON(result)
+		printJSON(leaderboard)
 		return
 	}
 
-	if len(result.Leaderboard) == 0 {
+	if len(leaderboard) == 0 {
 		fmt.Println("No leaderboard data yet. Run some prompts first.")
 		return
 	}
 
 	fmt.Println("Brand Mention Leaderboard")
 	fmt.Println(strings.Repeat("─", 50))
-	for _, entry := range result.Leaderboard {
+	for _, entry := range leaderboard {
 		bar := strings.Repeat("█", min(entry.Mentions, 40))
 		fmt.Printf("  #%-3d %-25s %3d  %s\n", entry.Rank, entry.Company, entry.Mentions, bar)
 	}
