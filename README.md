@@ -11,10 +11,16 @@ curl -fsSL https://cli.xseek.io/install.sh | sh
 ## Setup
 
 ```sh
-export XSEEK_API_KEY=your_api_key
+xseek login YOUR_API_KEY
 ```
 
-Get your API key at [xseek.io/dashboard/api-keys](https://www.xseek.io/dashboard/api-keys).
+Your key is saved to `~/.xseek/config` and used for all future commands. Get your API key at [xseek.io/dashboard/api-keys](https://www.xseek.io/dashboard/api-keys).
+
+To log out:
+
+```sh
+xseek logout
+```
 
 ## Commands
 
@@ -35,15 +41,22 @@ xseek scan robots yoursite.com          # Check AI bot access
 xseek generate llms-txt yoursite.com    # Generate LLMs.txt
 ```
 
-All commands support `--format json` for scripting.
+All commands support `--format json` for scripting and `--help` for usage details:
+
+```sh
+xseek sources --help
+```
 
 ### Flags
 
 ```sh
+--help              # Show command usage and available flags
 --format json       # JSON output
 --pageSize N        # Number of results
 --sortBy <field>    # Sort field (impressions, clicks, position)
 --days N            # Time range (7, 30, 90)
+--value <level>     # Filter by business value (critical, high, medium, low)
+--type <type>       # Filter by content type (blog, comparison, howto, faq)
 --url <url>         # Filter by URL
 --search <term>     # Search/filter term
 --bot <name>        # Filter by bot name
@@ -66,8 +79,8 @@ Claude Code uses the CLI under the hood to pull leaderboard data, find content g
 Tag a version to trigger a release:
 
 ```sh
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.2.3
+git push origin v0.2.3
 ```
 
 GoReleaser builds binaries for macOS and Linux (amd64 + arm64) and publishes them as a GitHub Release.
