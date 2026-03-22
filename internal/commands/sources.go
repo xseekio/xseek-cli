@@ -28,7 +28,7 @@ type SourcesResponse struct {
 	} `json:"data"`
 }
 
-func ListSources(websiteID string) {
+func ListSources(websiteID string, days string, pageSize string, search string) {
 	client, err := api.NewClient()
 	if err != nil {
 		exitError(err.Error())
@@ -36,8 +36,19 @@ func ListSources(websiteID string) {
 
 	websiteID = resolveWebsiteID(client, websiteID)
 
+	params := map[string]string{}
+	if days != "" {
+		params["days"] = days
+	}
+	if pageSize != "" {
+		params["pageSize"] = pageSize
+	}
+	if search != "" {
+		params["search"] = search
+	}
+
 	var result SourcesResponse
-	err = client.GetJSON(fmt.Sprintf("/websites/%s/sources", websiteID), nil, &result)
+	err = client.GetJSON(fmt.Sprintf("/websites/%s/sources", websiteID), params, &result)
 	if err != nil {
 		exitError(err.Error())
 	}

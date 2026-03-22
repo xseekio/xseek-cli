@@ -37,7 +37,7 @@ type OpportunitiesResponse struct {
 	} `json:"data"`
 }
 
-func ListOpportunities(websiteID string) {
+func ListOpportunities(websiteID string, businessValue string, contentType string, limit string) {
 	client, err := api.NewClient()
 	if err != nil {
 		exitError(err.Error())
@@ -45,8 +45,19 @@ func ListOpportunities(websiteID string) {
 
 	websiteID = resolveWebsiteID(client, websiteID)
 
+	params := map[string]string{}
+	if businessValue != "" {
+		params["businessValue"] = businessValue
+	}
+	if contentType != "" {
+		params["contentType"] = contentType
+	}
+	if limit != "" {
+		params["limit"] = limit
+	}
+
 	var result OpportunitiesResponse
-	err = client.GetJSON(fmt.Sprintf("/websites/%s/opportunities", websiteID), nil, &result)
+	err = client.GetJSON(fmt.Sprintf("/websites/%s/opportunities", websiteID), params, &result)
 	if err != nil {
 		exitError(err.Error())
 	}

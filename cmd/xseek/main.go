@@ -56,6 +56,33 @@ Get your API key at: https://www.xseek.io/dashboard/api-keys
 `, version)
 }
 
+var commandHelp = map[string]string{
+	"login":          "Usage: xseek login <api-key>\n\nSave your API key to ~/.xseek/config for future use.",
+	"logout":         "Usage: xseek logout\n\nRemove your saved API key.",
+	"scan":           "Usage: xseek scan robots <domain>\n\nCheck which AI bots are allowed or blocked in a domain's robots.txt.",
+	"generate":       "Usage: xseek generate llms-txt <domain>\n\nGenerate an LLMs.txt file for a domain.",
+	"websites":       "Usage: xseek websites\n\nList all tracked websites in your account.\n\nFlags:\n  --format json    Output as JSON",
+	"prompts":        "Usage: xseek prompts <website>\n\nList all prompts tracked for a website.\n\nFlags:\n  --format json    Output as JSON",
+	"prompt-runs":    "Usage: xseek prompt-runs <website> <promptId>\n\nShow the latest runs for a specific prompt.\n\nFlags:\n  --pageSize N     Number of results (default 10)\n  --format json    Output as JSON",
+	"leaderboard":    "Usage: xseek leaderboard <website>\n\nShow the brand mention leaderboard across all prompts.\n\nFlags:\n  --days N         Time window in days (default 30)\n  --format json    Output as JSON",
+	"sources":        "Usage: xseek sources <website>\n\nList AI citation sources — the URLs that AI models cite when mentioning your brand.\n\nFlags:\n  --days N         Filter sources from the last N days (e.g. 1, 7, 30)\n  --pageSize N     Number of results (default 20)\n  --search <term>  Filter by URL, domain, or title\n  --format json    Output as JSON",
+	"opportunities":  "Usage: xseek opportunities <website>\n\nList content gap opportunities found by AI analysis.\n\nFlags:\n  --value <level>  Filter by business value: critical, high, medium, low\n  --type <type>    Filter by content type: blog, comparison, howto, faq\n  --pageSize N     Max number of results (default 50)\n  --format json    Output as JSON",
+	"search-metrics": "Usage: xseek search-metrics <website>\n\nShow GSC page-level metrics (impressions, clicks, position).\n\nFlags:\n  --pageSize N     Number of results (default 20)\n  --sortBy <field> Sort by: impressions, clicks, position, ctr\n  --search <term>  Filter by URL\n  --format json    Output as JSON",
+	"search-queries": "Usage: xseek search-queries <website>\n\nShow GSC search queries driving traffic.\n\nFlags:\n  --pageSize N     Number of results (default 20)\n  --sortBy <field> Sort by: impressions, clicks, position, ctr\n  --url <url>      Filter by page URL\n  --format json    Output as JSON",
+	"sitemap-pages":  "Usage: xseek sitemap-pages <website>\n\nShow sitemap pages with AI visit and GSC data.\n\nFlags:\n  --days N         Time range in days (default 30)\n  --filter <type>  Filter type: \"attention\" for pages with dropping AI traffic\n  --format json    Output as JSON",
+	"ai-visits":      "Usage: xseek ai-visits <website>\n\nShow AI bot visit logs.\n\nFlags:\n  --pageSize N     Number of results (default 20)\n  --search <term>  Filter by URL\n  --bot <name>     Filter by bot name\n  --format json    Output as JSON",
+	"web-searches":   "Usage: xseek web-searches <website>\n\nShow LLM web searches triggered by your prompts.\n\nFlags:\n  --pageSize N     Number of results (default 20)\n  --format json    Output as JSON",
+	"analyze":        "Usage: xseek analyze <website> <url>\n\nRun AEO Copilot analysis on a specific page URL.\n\nFlags:\n  --format json    Output as JSON",
+}
+
+func printCommandHelp(cmd string) {
+	if help, ok := commandHelp[cmd]; ok {
+		fmt.Println(help)
+	} else {
+		fmt.Fprintf(os.Stderr, "Unknown command: %s\nRun 'xseek help' for usage.\n", cmd)
+	}
+}
+
 func main() {
 	api.Version = version
 	args := os.Args[1:]
@@ -69,7 +96,9 @@ func main() {
 	filtered := make([]string, 0, len(args))
 	flags := map[string]string{}
 	for i := 0; i < len(args); i++ {
-		if args[i] == "--format" && i+1 < len(args) {
+		if args[i] == "--help" || args[i] == "-h" {
+			flags["help"] = "true"
+		} else if args[i] == "--format" && i+1 < len(args) {
 			commands.OutputFormat = args[i+1]
 			i++
 		} else if args[i] == "--format=json" {
@@ -85,6 +114,16 @@ func main() {
 
 	if len(args) == 0 {
 		usage()
+		os.Exit(0)
+	}
+
+	// Per-command --help
+	if _, hasHelp := flags["help"]; hasHelp {
+		if len(args) > 0 {
+			printCommandHelp(args[0])
+		} else {
+			usage()
+		}
 		os.Exit(0)
 	}
 
@@ -144,21 +183,21 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Usage: xseek leaderboard <website>")
 			os.Exit(1)
 		}
-		commands.ReportLeaderboard(args[1])
+		commands.ReportLeaderboard(args[1], flags["days"])
 
 	case "sources":
 		if len(args) < 2 {
 			fmt.Fprintln(os.Stderr, "Usage: xseek sources <website>")
 			os.Exit(1)
 		}
-		commands.ListSources(args[1])
+		commands.ListSources(args[1], flags["days"], flags["pageSize"], flags["search"])
 
 	case "opportunities":
 		if len(args) < 2 {
 			fmt.Fprintln(os.Stderr, "Usage: xseek opportunities <website>")
 			os.Exit(1)
 		}
-		commands.ListOpportunities(args[1])
+		commands.ListOpportunities(args[1], flags["value"], flags["type"], flags["pageSize"])
 
 	case "search-metrics":
 		if len(args) < 2 {

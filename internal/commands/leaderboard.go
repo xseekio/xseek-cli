@@ -23,7 +23,7 @@ type LeaderboardResponse struct {
 	} `json:"meta"`
 }
 
-func ReportLeaderboard(websiteID string) {
+func ReportLeaderboard(websiteID string, days string) {
 	client, err := api.NewClient()
 	if err != nil {
 		exitError(err.Error())
@@ -31,8 +31,13 @@ func ReportLeaderboard(websiteID string) {
 
 	websiteID = resolveWebsiteID(client, websiteID)
 
+	params := map[string]string{}
+	if days != "" {
+		params["lastDays"] = days
+	}
+
 	var result LeaderboardResponse
-	err = client.GetJSON(fmt.Sprintf("/websites/%s/prompts/leaderboard", websiteID), nil, &result)
+	err = client.GetJSON(fmt.Sprintf("/websites/%s/prompts/leaderboard", websiteID), params, &result)
 	if err != nil {
 		exitError(err.Error())
 	}
