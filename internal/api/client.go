@@ -210,4 +210,44 @@ func (c *Client) PostJSON(path string, body interface{}, v interface{}) error {
 	return json.Unmarshal(respBody, v)
 }
 
+func (c *Client) PatchJSON(path string, body interface{}, v interface{}) error {
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	url := c.baseURL + path
+	req, err := http.NewRequest("PATCH", url, bytes.NewReader(jsonBody))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "xseek-cli/"+Version)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode == 401 {
+		return fmt.Errorf("unauthorized — check your XSEEK_API_KEY")
+	}
+	if resp.StatusCode == 403 {
+		return fmt.Errorf("forbidden — your API key may not have the required privileges")
+	}
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("API error (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	return json.Unmarshal(respBody, v)
+}
+
 var Version = "dev"

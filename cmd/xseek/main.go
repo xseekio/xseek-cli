@@ -17,8 +17,11 @@ Usage:
   xseek <command> [arguments]
 
 Commands:
+  init                              Install xSeek skills for Claude Code
+  claude                            Start Claude Code with xSeek Channel UI
   login <api-key>                   Save API key to ~/.xseek/config
   logout                            Remove saved API key
+  skills                            List installed Claude Code skills
   scan robots <domain>              Check AI bot access in robots.txt
   generate llms-txt <domain>        Generate an LLMs.txt for a domain
   websites                          List your tracked websites
@@ -32,6 +35,11 @@ Commands:
   sitemap-pages <website>           Sitemap pages with AI + GSC data
   ai-visits <website>               AI bot visit logs
   web-searches <website>            LLM web searches behind prompts
+  brand-context <website>           Brand voice, tone, and knowledge base
+  articles list <website>           List articles in Content Studio
+  articles push <website>           Push a new article (stdin or --file)
+  articles get <website> <id>       Get article content
+  articles publish <website> <id> <url>  Mark article as published
   analyze <website> <url>           AEO Copilot page analysis
   version                           Print version
 
@@ -57,6 +65,9 @@ Get your API key at: https://www.xseek.io/dashboard/api-keys
 }
 
 var commandHelp = map[string]string{
+	"init":           "Usage: xseek init\n\nInstall xSeek skills (slash commands) for Claude Code.\nDownloads the latest skills from GitHub and installs them to ~/.claude/skills/.\n\nAfter running, open Claude Code and type /generate-article to get started.",
+	"claude":         "Usage: xseek claude\n\nStart Claude Code with the xSeek Channel UI.\nOpens a web interface at http://127.0.0.1:8787 connected to your Claude Code session.\n\nFlags:\n  --port N    Custom port (default: 8787)\n\nRequires:\n  - Claude Code CLI installed\n  - Node.js installed",
+	"skills":         "Usage: xseek skills\n\nList installed xSeek skills for Claude Code.\n\nFlags:\n  --format json    Output as JSON",
 	"login":          "Usage: xseek login <api-key>\n\nSave your API key to ~/.xseek/config for future use.",
 	"logout":         "Usage: xseek logout\n\nRemove your saved API key.",
 	"scan":           "Usage: xseek scan robots <domain>\n\nCheck which AI bots are allowed or blocked in a domain's robots.txt.",
@@ -73,6 +84,8 @@ var commandHelp = map[string]string{
 	"ai-visits":      "Usage: xseek ai-visits <website>\n\nShow AI bot visit logs.\n\nFlags:\n  --pageSize N     Number of results (default 20)\n  --search <term>  Filter by URL\n  --bot <name>     Filter by bot name\n  --format json    Output as JSON",
 	"web-searches":   "Usage: xseek web-searches <website>\n\nShow LLM web searches triggered by your prompts.\n\nFlags:\n  --pageSize N     Number of results (default 20)\n  --format json    Output as JSON",
 	"analyze":        "Usage: xseek analyze <website> <url>\n\nRun AEO Copilot analysis on a specific page URL.\n\nFlags:\n  --format json    Output as JSON",
+	"brand-context":  "Usage: xseek brand-context <website>\n\nGet brand voice guidelines, tone, and knowledge base entries for a website.\nUsed by article generation to match your brand's style.\n\nFlags:\n  --format json    Output as JSON",
+	"articles":       "Usage: xseek articles <subcommand> <website> [arguments]\n\nSubcommands:\n  list <website>                    List articles in Content Studio\n  push <website>                    Push a new article\n  get <website> <articleId>         Get article content\n  publish <website> <id> <url>      Mark article as published\n\nFlags (list):\n  --status <status>  Filter by status: draft, ready, published\n  --pageSize N       Number of results (default 20)\n  --format json      Output as JSON\n\nFlags (push):\n  --title \"...\"      Article title (required)\n  --file <path>      Read content from file (alternative to stdin)\n  --status <status>  Article status (default: ready)\n  --meta-description \"...\"  Meta description\n  --format json      Output as JSON\n\nExamples:\n  xseek articles list mysite.com\n  cat article.md | xseek articles push mysite.com --title \"My Article\"\n  xseek articles push mysite.com --title \"My Article\" --file article.md\n  xseek articles get mysite.com <id>\n  xseek articles publish mysite.com <id> https://blog.com/article",
 }
 
 func printCommandHelp(cmd string) {
@@ -128,6 +141,15 @@ func main() {
 	}
 
 	switch args[0] {
+	case "init":
+		commands.Init()
+
+	case "claude":
+		commands.CloudStart(flags["port"])
+
+	case "skills":
+		commands.ListSkills()
+
 	case "login":
 		if len(args) < 2 {
 			fmt.Fprintln(os.Stderr, "Usage: xseek login <api-key>")
@@ -233,6 +255,48 @@ func main() {
 			os.Exit(1)
 		}
 		commands.ListWebSearches(args[1], flags["pageSize"])
+
+	case "brand-context":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "Usage: xseek brand-context <website>")
+			os.Exit(1)
+		}
+		commands.GetBrandContext(args[1])
+
+	case "articles":
+		if len(args) < 2 {
+			printCommandHelp("articles")
+			os.Exit(1)
+		}
+		switch args[1] {
+		case "list":
+			if len(args) < 3 {
+				fmt.Fprintln(os.Stderr, "Usage: xseek articles list <website>")
+				os.Exit(1)
+			}
+			commands.ListArticles(args[2], flags["status"], flags["pageSize"])
+		case "push":
+			if len(args) < 3 {
+				fmt.Fprintln(os.Stderr, "Usage: xseek articles push <website> --title \"...\"")
+				os.Exit(1)
+			}
+			commands.PushArticle(args[2], flags["title"], flags["file"], flags["status"], flags["meta-description"])
+		case "get":
+			if len(args) < 4 {
+				fmt.Fprintln(os.Stderr, "Usage: xseek articles get <website> <articleId>")
+				os.Exit(1)
+			}
+			commands.GetArticle(args[2], args[3])
+		case "publish":
+			if len(args) < 5 {
+				fmt.Fprintln(os.Stderr, "Usage: xseek articles publish <website> <articleId> <url>")
+				os.Exit(1)
+			}
+			commands.PublishArticle(args[2], args[3], args[4])
+		default:
+			fmt.Fprintf(os.Stderr, "Unknown articles subcommand: %s\nRun 'xseek articles --help' for usage.\n", args[1])
+			os.Exit(1)
+		}
 
 	case "analyze":
 		if len(args) < 3 {

@@ -1,0 +1,238 @@
+package commands
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"strings"
+
+	"github.com/xseekio/xseek-cli/internal/api"
+)
+
+type Article struct {
+	ID              string  `json:"id"`
+	Title           string  `json:"title"`
+	Slug            string  `json:"slug"`
+	MetaDescription *string `json:"metaDescription"`
+	ContentMarkdown *string `json:"contentMarkdown"`
+	Status          string  `json:"status"`
+	QualityScore    *int    `json:"qualityScore"`
+	OpportunityID   *string `json:"opportunityId"`
+	PublishedAt     *string `json:"publishedAt"`
+	PublishedURL    *string `json:"publishedUrl"`
+	CreatedAt       string  `json:"createdAt"`
+}
+
+type ArticlesResponse struct {
+	Success bool `json:"success"`
+	Data    struct {
+		Articles   []Article `json:"articles"`
+		Pagination struct {
+			Page       int `json:"page"`
+			PageSize   int `json:"pageSize"`
+			Total      int `json:"total"`
+			TotalPages int `json:"totalPages"`
+		} `json:"pagination"`
+	} `json:"data"`
+}
+
+type ArticleResponse struct {
+	Success bool    `json:"success"`
+	Data    Article `json:"data"`
+}
+
+type ArticleCreateResponse struct {
+	Success bool `json:"success"`
+	Data    struct {
+		ID           string  `json:"id"`
+		Title        string  `json:"title"`
+		Slug         string  `json:"slug"`
+		Status       string  `json:"status"`
+		QualityScore *int    `json:"qualityScore"`
+		CreatedAt    string  `json:"createdAt"`
+	} `json:"data"`
+}
+
+func ListArticles(websiteID string, status string, pageSize string) {
+	client, err := api.NewClient()
+	if err != nil {
+		exitError(err.Error())
+	}
+
+	websiteID = resolveWebsiteID(client, websiteID)
+
+	params := map[string]string{}
+	if status != "" {
+		params["status"] = status
+	}
+	if pageSize != "" {
+		params["pageSize"] = pageSize
+	}
+
+	var result ArticlesResponse
+	err = client.GetJSON(fmt.Sprintf("/websites/%s/articles", websiteID), params, &result)
+	if err != nil {
+		exitError(err.Error())
+	}
+
+	articles := result.Data.Articles
+
+	if isJSON() {
+		printJSON(articles)
+		return
+	}
+
+	if len(articles) == 0 {
+		fmt.Println("No articles found.")
+		return
+	}
+
+	fmt.Println("Content Studio — Articles")
+	fmt.Println(strings.Repeat("─", 90))
+	fmt.Printf("  %-36s %-30s %-10s %-5s %s\n", "ID", "Title", "Status", "Score", "Date")
+	fmt.Println(strings.Repeat("─", 90))
+	for _, a := range articles {
+		title := a.Title
+		if len(title) > 28 {
+			title = title[:25] + "..."
+		}
+		score := "-"
+		if a.QualityScore != nil {
+			score = fmt.Sprintf("%d", *a.QualityScore)
+		}
+		date := a.CreatedAt
+		if len(date) > 10 {
+			date = date[:10]
+		}
+		fmt.Printf("  %-36s %-30s %-10s %-5s %s\n", a.ID, title, a.Status, score, date)
+	}
+	fmt.Printf("\nShowing %d of %d articles\n", len(articles), result.Data.Pagination.Total)
+}
+
+func PushArticle(websiteID string, title string, filePath string, status string, metaDescription string) {
+	if title == "" {
+		exitError("--title is required")
+	}
+
+	client, err := api.NewClient()
+	if err != nil {
+		exitError(err.Error())
+	}
+
+	websiteID = resolveWebsiteID(client, websiteID)
+
+	// Read content from file or stdin
+	var content string
+	if filePath != "" {
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			exitError(fmt.Sprintf("failed to read file: %s", err))
+		}
+		content = string(data)
+	} else {
+		stat, _ := os.Stdin.Stat()
+		if (stat.Mode() & os.ModeCharDevice) == 0 {
+			data, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				exitError(fmt.Sprintf("failed to read stdin: %s", err))
+			}
+			content = string(data)
+		}
+	}
+
+	body := map[string]interface{}{
+		"title": title,
+	}
+	if content != "" {
+		body["contentMarkdown"] = content
+	}
+	if status != "" {
+		body["status"] = status
+	} else {
+		body["status"] = "ready"
+	}
+	if metaDescription != "" {
+		body["metaDescription"] = metaDescription
+	}
+
+	var result ArticleCreateResponse
+	err = client.PostJSON(fmt.Sprintf("/websites/%s/articles", websiteID), body, &result)
+	if err != nil {
+		exitError(err.Error())
+	}
+
+	if isJSON() {
+		printJSON(result.Data)
+		return
+	}
+
+	fmt.Printf("Article created\n")
+	fmt.Printf("  ID:     %s\n", result.Data.ID)
+	fmt.Printf("  Title:  %s\n", result.Data.Title)
+	fmt.Printf("  Status: %s\n", result.Data.Status)
+}
+
+func GetArticle(websiteID string, articleID string) {
+	client, err := api.NewClient()
+	if err != nil {
+		exitError(err.Error())
+	}
+
+	websiteID = resolveWebsiteID(client, websiteID)
+
+	var result ArticleResponse
+	err = client.GetJSON(fmt.Sprintf("/websites/%s/articles/%s", websiteID, articleID), nil, &result)
+	if err != nil {
+		exitError(err.Error())
+	}
+
+	a := result.Data
+
+	if isJSON() {
+		printJSON(a)
+		return
+	}
+
+	fmt.Printf("Title:  %s\n", a.Title)
+	fmt.Printf("ID:     %s\n", a.ID)
+	fmt.Printf("Status: %s\n", a.Status)
+	if a.QualityScore != nil {
+		fmt.Printf("Score:  %d\n", *a.QualityScore)
+	}
+	if a.PublishedURL != nil && *a.PublishedURL != "" {
+		fmt.Printf("URL:    %s\n", *a.PublishedURL)
+	}
+	fmt.Println()
+	if a.ContentMarkdown != nil {
+		fmt.Println(*a.ContentMarkdown)
+	}
+}
+
+func PublishArticle(websiteID string, articleID string, publishedURL string) {
+	client, err := api.NewClient()
+	if err != nil {
+		exitError(err.Error())
+	}
+
+	websiteID = resolveWebsiteID(client, websiteID)
+
+	body := map[string]interface{}{
+		"publishedUrl": publishedURL,
+	}
+
+	var result ArticleResponse
+	err = client.PatchJSON(fmt.Sprintf("/websites/%s/articles/%s", websiteID, articleID), body, &result)
+	if err != nil {
+		exitError(err.Error())
+	}
+
+	if isJSON() {
+		printJSON(result.Data)
+		return
+	}
+
+	fmt.Printf("Article published\n")
+	fmt.Printf("  ID:    %s\n", result.Data.ID)
+	fmt.Printf("  Title: %s\n", result.Data.Title)
+	fmt.Printf("  URL:   %s\n", publishedURL)
+}
