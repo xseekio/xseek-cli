@@ -7,6 +7,15 @@ import (
 	"github.com/xseekio/xseek-cli/internal/api"
 )
 
+type ICP struct {
+	TargetAudience *string  `json:"targetAudience"`
+	Industry       *string  `json:"industry"`
+	CompanySize    *string  `json:"companySize"`
+	PainPoints     []string `json:"painPoints"`
+	UseCase        *string  `json:"useCase"`
+	BuyerRole      *string  `json:"buyerRole"`
+}
+
 type BrandContextResponse struct {
 	Success bool `json:"success"`
 	Data    struct {
@@ -14,6 +23,7 @@ type BrandContextResponse struct {
 		WebsiteURL           string   `json:"websiteUrl"`
 		BrandVoiceGuidelines *string  `json:"brandVoiceGuidelines"`
 		BrandTone            *string  `json:"brandTone"`
+		ICP                  *ICP     `json:"icp"`
 		KnowledgeChunks      []string `json:"knowledgeChunks"`
 		BrandVoiceSamples    []string `json:"brandVoiceSamples"`
 	} `json:"data"`
@@ -49,6 +59,32 @@ func GetBrandContext(websiteID string) {
 	fmt.Printf("  Website:   %s\n", d.WebsiteURL)
 	if d.BrandTone != nil && *d.BrandTone != "" {
 		fmt.Printf("  Tone:      %s\n", *d.BrandTone)
+	}
+
+	if d.ICP != nil {
+		fmt.Println()
+		fmt.Println("Ideal Customer Profile (ICP):")
+		if d.ICP.TargetAudience != nil {
+			fmt.Printf("  Audience:     %s\n", *d.ICP.TargetAudience)
+		}
+		if d.ICP.Industry != nil {
+			fmt.Printf("  Industry:     %s\n", *d.ICP.Industry)
+		}
+		if d.ICP.CompanySize != nil {
+			fmt.Printf("  Company size: %s\n", *d.ICP.CompanySize)
+		}
+		if d.ICP.BuyerRole != nil {
+			fmt.Printf("  Buyer role:   %s\n", *d.ICP.BuyerRole)
+		}
+		if d.ICP.UseCase != nil {
+			fmt.Printf("  Use case:     %s\n", *d.ICP.UseCase)
+		}
+		if len(d.ICP.PainPoints) > 0 {
+			fmt.Println("  Pain points:")
+			for _, p := range d.ICP.PainPoints {
+				fmt.Printf("    - %s\n", p)
+			}
+		}
 	}
 
 	if d.BrandVoiceGuidelines != nil && *d.BrandVoiceGuidelines != "" {
