@@ -85,7 +85,7 @@ var commandHelp = map[string]string{
 	"ai-visits":      "Usage: xseek ai-visits <website>\n\nShow AI bot visit logs.\n\nFlags:\n  --pageSize N     Number of results (default 20)\n  --search <term>  Filter by URL\n  --bot <name>     Filter by bot name\n  --format json    Output as JSON",
 	"web-searches":   "Usage: xseek web-searches <website>\n\nShow LLM web searches triggered by your prompts.\n\nFlags:\n  --pageSize N     Number of results (default 20)\n  --format json    Output as JSON",
 	"analyze":        "Usage: xseek analyze <website> <url>\n\nRun AEO Copilot analysis on a specific page URL.\n\nFlags:\n  --format json    Output as JSON",
-	"keywords":       "Usage: xseek keywords <website> \"<topic>\"\n\nResearch keywords for a topic using DataForSEO.\nReturns search volume, keyword difficulty, and related keywords.\nAccepts comma-separated topics (max 10).\n\nExamples:\n  xseek keywords mysite.com \"best crm for small business\"\n  xseek keywords mysite.com \"crm tools,project management\" --format json\n\nFlags:\n  --format json    Output as JSON",
+	"keywords":       "Usage: xseek keywords <website> \"<topic>\"\n\nResearch keywords for a topic using DataForSEO.\nReturns search volume, keyword difficulty, and related keywords.\nAccepts comma-separated topics (max 10).\n\nExamples:\n  xseek keywords mysite.com \"best crm for small business\"\n  xseek keywords mysite.com \"meilleur crm\" --language fr --location 2124\n  xseek keywords mysite.com \"crm tools\" --format json\n\nFlags:\n  --language <code>  Language code (default: en). Examples: fr, es, de, pt\n  --location <code>  Google location code (default: 2840 = US). Common codes:\n                       2124 = Canada, 2250 = France, 2826 = UK,\n                       2276 = Germany, 2724 = Spain, 2076 = Brazil,\n                       2036 = Australia, 2392 = Japan\n  --format json      Output as JSON",
 	"brand-context":  "Usage: xseek brand-context <website>\n\nGet brand voice guidelines, tone, and knowledge base entries for a website.\nUsed by article generation to match your brand's style.\n\nFlags:\n  --format json    Output as JSON",
 	"articles":       "Usage: xseek articles <subcommand> <website> [arguments]\n\nSubcommands:\n  list <website>                    List articles in Content Studio\n  push <website>                    Push a new article\n  get <website> <articleId>         Get article content\n  publish <website> <id> <url>      Mark article as published\n\nFlags (list):\n  --status <status>  Filter by status: draft, ready, published\n  --pageSize N       Number of results (default 20)\n  --format json      Output as JSON\n\nFlags (push):\n  --title \"...\"      Article title (required)\n  --file <path>      Read content from file (alternative to stdin)\n  --status <status>  Article status (default: ready)\n  --meta-description \"...\"  Meta description\n  --format json      Output as JSON\n\nExamples:\n  xseek articles list mysite.com\n  cat article.md | xseek articles push mysite.com --title \"My Article\"\n  xseek articles push mysite.com --title \"My Article\" --file article.md\n  xseek articles get mysite.com <id>\n  xseek articles publish mysite.com <id> https://blog.com/article",
 }
@@ -263,7 +263,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Usage: xseek keywords <website> \"<topic>\"")
 			os.Exit(1)
 		}
-		commands.SearchKeywords(args[1], args[2])
+		commands.SearchKeywords(args[1], args[2], flags["language"], flags["location"])
 
 	case "brand-context":
 		if len(args) < 2 {

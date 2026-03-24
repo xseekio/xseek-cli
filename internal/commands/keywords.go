@@ -30,7 +30,7 @@ type KeywordsResponse struct {
 	} `json:"data"`
 }
 
-func SearchKeywords(websiteID string, query string) {
+func SearchKeywords(websiteID string, query string, language string, location string) {
 	if query == "" {
 		exitError("query is required: xseek keywords <website> \"<topic>\"")
 	}
@@ -44,6 +44,12 @@ func SearchKeywords(websiteID string, query string) {
 
 	params := map[string]string{
 		"q": query,
+	}
+	if language != "" {
+		params["language"] = language
+	}
+	if location != "" {
+		params["location"] = location
 	}
 
 	var result KeywordsResponse
