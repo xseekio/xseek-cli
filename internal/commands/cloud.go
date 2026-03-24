@@ -65,7 +65,8 @@ func CloudStart(port string) {
 
 	// 5. Launch Claude Code with channel
 	cmd := exec.Command(claudePath,
-		"--dangerously-skip-permissions",
+		"--enable-auto-mode",
+		"--chrome",
 		"--dangerously-load-development-channels",
 		"server:channel-ui",
 	)
