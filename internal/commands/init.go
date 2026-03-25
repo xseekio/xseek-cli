@@ -34,6 +34,7 @@ var skillDefinitions = []struct {
 	{"track-visibility", "track-visibility.md", "AI visibility snapshot. Run this when a user wants a quick overview of their brand's AI search presence.", ""},
 	{"weekly-report", "weekly-report.md", "Weekly AI visibility and SEO performance report. Run this when a user asks for a status update or weekly summary.", ""},
 	{"writing-rules", "writing-rules.md", "Human-like writing rules for AI content. Referenced by other skills — not invoked directly.", ""},
+	{"geo-methods", "geo-methods.md", "Princeton GEO optimization methods with examples and domain tips. Referenced by other skills — not invoked directly.", ""},
 }
 
 func Init() {
