@@ -80,6 +80,27 @@ func Init() {
 		installed++
 	}
 
+	// Cleanup old skills that are no longer in the definitions
+	knownSkills := make(map[string]bool)
+	for _, skill := range skillDefinitions {
+		knownSkills[skill.Name] = true
+	}
+	entries, _ := os.ReadDir(skillsDir)
+	removed := 0
+	for _, entry := range entries {
+		if entry.IsDir() && !knownSkills[entry.Name()] {
+			// Check if it's an xSeek skill (has SKILL.md)
+			skillPath := filepath.Join(skillsDir, entry.Name(), "SKILL.md")
+			if content, err := os.ReadFile(skillPath); err == nil {
+				if strings.Contains(string(content), "xseek") || strings.Contains(string(content), "xSeek") || strings.Contains(string(content), "AEO") || strings.Contains(string(content), "GEO") {
+					os.RemoveAll(filepath.Join(skillsDir, entry.Name()))
+					fmt.Printf("  🗑 /%s (removed — no longer available)\n", entry.Name())
+					removed++
+				}
+			}
+		}
+	}
+
 	fmt.Println()
 	if installed == len(skillDefinitions) {
 		fmt.Printf("All %d skills installed.\n", installed)
