@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -48,7 +49,50 @@ func CloudStart(port string) {
 		exitError(fmt.Sprintf("channel server not found at %s\nRun 'xseek init' to reinstall", serverPath))
 	}
 
-	// 3. Configure MCP for the channel
+	// 3. Write .mcp.json in the current directory so Claude Code can find the server
+	mcpConfig := map[string]interface{}{
+		"mcpServers": map[string]interface{}{
+			"channel-ui": map[string]interface{}{
+				"command": "npx",
+				"args":    []string{"tsx", serverPath},
+			},
+		},
+	}
+
+	// Check if .mcp.json already exists and has our config
+	cwd, _ := os.Getwd()
+	mcpPath := filepath.Join(cwd, ".mcp.json")
+	needsWrite := true
+
+	if existing, err := os.ReadFile(mcpPath); err == nil {
+		var existingConfig map[string]interface{}
+		if json.Unmarshal(existing, &existingConfig) == nil {
+			if servers, ok := existingConfig["mcpServers"].(map[string]interface{}); ok {
+				if _, hasChannel := servers["channel-ui"]; hasChannel {
+					needsWrite = false
+				}
+			}
+		}
+	}
+
+	if needsWrite {
+		// If .mcp.json exists, merge our server into it
+		if existing, err := os.ReadFile(mcpPath); err == nil {
+			var existingConfig map[string]interface{}
+			if json.Unmarshal(existing, &existingConfig) == nil {
+				if servers, ok := existingConfig["mcpServers"].(map[string]interface{}); ok {
+					servers["channel-ui"] = mcpConfig["mcpServers"].(map[string]interface{})["channel-ui"]
+					mcpConfig = existingConfig
+				}
+			}
+		}
+
+		mcpJSON, _ := json.MarshalIndent(mcpConfig, "", "  ")
+		if err := os.WriteFile(mcpPath, mcpJSON, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not write .mcp.json: %s\n", err)
+		}
+	}
+
 	fmt.Println("xSeek Cloud")
 	fmt.Println()
 	fmt.Printf("  Channel UI:  http://127.0.0.1:%s\n", port)
