@@ -120,8 +120,8 @@ func buildSkillFile(name, description, argHint, content string) string {
 	if argHint != "" {
 		sb.WriteString(fmt.Sprintf("argument-hint: %s\n", argHint))
 	}
-	// writing-rules is referenced by other skills, not invoked directly
-	if name == "writing-rules" {
+	// Reference files are not invoked directly as slash commands
+	if name == "writing-rules" || name == "geo-methods" {
 		sb.WriteString("disable-model-invocation: true\n")
 	}
 	sb.WriteString("---\n\n")
