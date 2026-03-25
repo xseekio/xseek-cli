@@ -72,7 +72,11 @@ func Init() {
 			continue
 		}
 
-		fmt.Printf("  ✓ /%s\n", skill.Name)
+		if skill.Name == "writing-rules" || skill.Name == "geo-methods" {
+			fmt.Printf("  ✓ %s (reference)\n", skill.Name)
+		} else {
+			fmt.Printf("  ✓ /%s\n", skill.Name)
+		}
 		installed++
 	}
 
@@ -165,14 +169,34 @@ func ListSkills() {
 		return
 	}
 
+	referenceFiles := map[string]bool{"writing-rules": true, "geo-methods": true}
+
 	fmt.Println("xSeek Skills for Claude Code")
 	fmt.Println(strings.Repeat("─", 50))
+	fmt.Println()
+	fmt.Println("  Commands:")
 	for _, skill := range skillDefinitions {
+		if referenceFiles[skill.Name] {
+			continue
+		}
 		path := filepath.Join(skillsDir, skill.Name, "SKILL.md")
 		if _, err := os.Stat(path); err == nil {
-			fmt.Printf("  ✓ /%s\n", skill.Name)
+			fmt.Printf("    ✓ /%s\n", skill.Name)
 		} else {
-			fmt.Printf("  ✗ /%s (not installed)\n", skill.Name)
+			fmt.Printf("    ✗ /%s (not installed)\n", skill.Name)
+		}
+	}
+	fmt.Println()
+	fmt.Println("  Reference files:")
+	for _, skill := range skillDefinitions {
+		if !referenceFiles[skill.Name] {
+			continue
+		}
+		path := filepath.Join(skillsDir, skill.Name, "SKILL.md")
+		if _, err := os.Stat(path); err == nil {
+			fmt.Printf("    ✓ %s\n", skill.Name)
+		} else {
+			fmt.Printf("    ✗ %s (not installed)\n", skill.Name)
 		}
 	}
 	fmt.Println()
