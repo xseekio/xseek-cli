@@ -24,6 +24,7 @@ var skillDefinitions = []struct {
 	Description string
 	ArgHint     string
 }{
+	{"add-keywords", "add-keywords.md", "Enrich an existing article with relevant SEO keywords from Google search data. Run this when a user wants to add keywords to an article.", "[url or articleId]"},
 	{"aeo-audit", "aeo-audit.md", "Full AI visibility assessment. Run this when a user asks to audit their AI search presence or check AEO performance.", ""},
 	{"find-opportunities", "find-opportunities.md", "Content gap finder for AI search. Run this when a user wants to find topics where competitors get cited by AI but they don't.", ""},
 	{"generate-article", "generate-article.md", "Generate an AI-optimized article from content gap data. Run this when a user wants to create new content targeting AI citations.", "[topic]"},
