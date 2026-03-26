@@ -28,13 +28,26 @@ func CloudStart(port string) {
 
 	dir := channelPath()
 
-	// 1. Install channel UI if not present
+	// 1. Install or update channel UI
 	if !channelInstalled(dir) {
 		fmt.Println("Installing xSeek Cloud channel UI...")
 		if err := installChannel(dir); err != nil {
 			exitError(fmt.Sprintf("failed to install channel UI: %s", err))
 		}
 		fmt.Println("  ✓ Channel UI installed")
+		fmt.Println()
+	} else {
+		// Update existing install
+		fmt.Println("Updating channel UI...")
+		pullCmd := exec.Command("git", "pull", "--rebase", "origin", "main")
+		pullCmd.Dir = dir
+		pullCmd.Stdout = os.Stdout
+		pullCmd.Stderr = os.Stderr
+		if err := pullCmd.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "  Warning: could not update channel UI: %s\n", err)
+		} else {
+			fmt.Println("  ✓ Channel UI updated")
+		}
 		fmt.Println()
 	}
 

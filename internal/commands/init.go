@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -109,6 +110,20 @@ func Init() {
 		fmt.Printf("All %d skills installed.\n", installed)
 	} else {
 		fmt.Printf("%d/%d skills installed.\n", installed, len(skillDefinitions))
+	}
+
+	// Update channel UI if installed
+	channelDir := channelPath()
+	if channelInstalled(channelDir) {
+		fmt.Println()
+		fmt.Println("Updating channel UI...")
+		pullCmd := exec.Command("git", "pull", "--rebase", "origin", "main")
+		pullCmd.Dir = channelDir
+		if err := pullCmd.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "  Warning: could not update channel UI: %s\n", err)
+		} else {
+			fmt.Println("  ✓ Channel UI updated")
+		}
 	}
 
 	fmt.Println()
