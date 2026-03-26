@@ -29,6 +29,7 @@ var skillDefinitions = []struct {
 	{"fact-check", "fact-check.md", "Verify pricing, features, and claims in an article against official sources. Run this to validate competitor data before publishing.", "[url or articleId]"},
 	{"find-opportunities", "find-opportunities.md", "Content gap finder for AI search. Run this when a user wants to find topics where competitors get cited by AI but they don't.", ""},
 	{"generate-article", "generate-article.md", "Generate an AI-optimized article from content gap data. Run this when a user wants to create new content targeting AI citations.", "[topic]"},
+	{"publish-articles", "publish-articles.md", "Publish ready articles from Content Studio to your website. Run this when articles are reviewed and ready to go live.", "[article title]"},
 	{"optimize-page", "optimize-page.md", "AI visibility optimization for a specific URL. Run this when a user wants to improve a page's chances of being cited by AI.", "<url>"},
 	{"rewrite-page", "rewrite-page.md", "Full AI-optimized content rewrite. Run this when a user wants to rewrite a page to improve AI search citations.", "<url>"},
 	{"track-visibility", "track-visibility.md", "AI visibility snapshot. Run this when a user wants a quick overview of their brand's AI search presence.", ""},
@@ -85,8 +86,9 @@ func Init() {
 	previousSkills := map[string]bool{
 		"aeo-audit": true, "add-keywords": true, "fact-check": true,
 		"find-opportunities": true, "generate-article": true, "geo-methods": true,
-		"optimize-page": true, "rewrite-page": true, "track-visibility": true,
-		"weekly-report": true, "writing-rules": true, "analyze": true,
+		"optimize-page": true, "publish-articles": true, "rewrite-page": true,
+		"track-visibility": true, "weekly-report": true, "writing-rules": true,
+		"analyze": true,
 	}
 	knownSkills := make(map[string]bool)
 	for _, skill := range skillDefinitions {
