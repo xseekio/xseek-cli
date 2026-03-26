@@ -2,9 +2,11 @@ package commands
 
 import (
 	"archive/zip"
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -38,7 +40,35 @@ func CloudStart(port string) {
 		exitError("Channel UI not installed. Run 'xseek init' first.")
 	}
 
-	// 2. Check claude is available
+	// 2. Check if port is already in use
+	if conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%s", port), time.Second); err == nil {
+		conn.Close()
+		fmt.Printf("Port %s is already in use (previous xSeek Cloud session?).\n", port)
+		fmt.Print("Kill the existing process? [y/N] ")
+		reader := bufio.NewReader(os.Stdin)
+		answer, _ := reader.ReadString('\n')
+		answer = strings.TrimSpace(strings.ToLower(answer))
+		if answer == "y" || answer == "yes" {
+			// Find and kill the process on the port
+			var killCmd *exec.Cmd
+			switch runtime.GOOS {
+			case "darwin", "linux":
+				killCmd = exec.Command("sh", "-c", fmt.Sprintf("lsof -ti:%s | xargs kill -9 2>/dev/null", port))
+			case "windows":
+				killCmd = exec.Command("cmd", "/c", fmt.Sprintf("for /f \"tokens=5\" %%a in ('netstat -aon ^| findstr :%s') do taskkill /F /PID %%a", port))
+			}
+			if killCmd != nil {
+				killCmd.Run()
+				time.Sleep(500 * time.Millisecond)
+				fmt.Println("  ✓ Previous process killed")
+			}
+		} else {
+			fmt.Println("Use --port to specify a different port: xseek claude --port 9000")
+			os.Exit(0)
+		}
+	}
+
+	// 3. Check claude is available
 	claudePath, err := exec.LookPath("claude")
 	if err != nil {
 		exitError("Claude Code CLI not found. Install it first:\n  npm install -g @anthropic-ai/claude-code")
