@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	channelBundleURL = "https://cli.xseek.io/channel-ui.zip"
+	channelBundleURL = "https://www.xseek.io/channel-ui.zip"
 	channelRepoZip   = "https://github.com/xseekio/xseek_claude_code_ui_channel/archive/refs/heads/main.zip"
 	channelDir       = "channel-ui"
 	defaultPort      = "8787"
