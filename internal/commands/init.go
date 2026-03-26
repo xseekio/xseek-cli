@@ -111,16 +111,14 @@ func Init() {
 		fmt.Printf("%d/%d skills installed.\n", installed, len(skillDefinitions))
 	}
 
-	// Update channel UI if installed
+	// Install or update channel UI
 	chDir := channelPath()
-	if channelInstalled(chDir) {
-		fmt.Println()
-		fmt.Println("Updating channel UI...")
-		if err := installOrUpdateChannel(chDir); err != nil {
-			fmt.Fprintf(os.Stderr, "  Warning: could not update channel UI: %s\n", err)
-		} else {
-			fmt.Println("  ✓ Channel UI updated")
-		}
+	fmt.Println()
+	fmt.Println("Installing channel UI...")
+	if err := installOrUpdateChannel(chDir); err != nil {
+		fmt.Fprintf(os.Stderr, "  Warning: could not install channel UI: %s\n", err)
+	} else {
+		fmt.Println("  ✓ Channel UI ready")
 	}
 
 	fmt.Println()

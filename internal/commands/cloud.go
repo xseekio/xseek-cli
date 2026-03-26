@@ -33,13 +33,10 @@ func CloudStart(port string) {
 
 	dir := channelPath()
 
-	// 1. Install or update channel UI
-	fmt.Println("Checking channel UI...")
-	if err := installOrUpdateChannel(dir); err != nil {
-		exitError(fmt.Sprintf("failed to install channel UI: %s", err))
+	// 1. Check channel UI is installed
+	if !channelInstalled(dir) {
+		exitError("Channel UI not installed. Run 'xseek init' first.")
 	}
-	fmt.Println("  ✓ Channel UI ready")
-	fmt.Println()
 
 	// 2. Check claude is available
 	claudePath, err := exec.LookPath("claude")
