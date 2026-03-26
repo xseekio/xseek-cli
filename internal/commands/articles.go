@@ -208,6 +208,68 @@ func GetArticle(websiteID string, articleID string) {
 	}
 }
 
+func UpdateArticle(websiteID string, articleID string, filePath string, title string, status string, metaDescription string) {
+	client, err := api.NewClient()
+	if err != nil {
+		exitError(err.Error())
+	}
+
+	websiteID = resolveWebsiteID(client, websiteID)
+
+	// Read content from file or stdin
+	var content string
+	if filePath != "" {
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			exitError(fmt.Sprintf("failed to read file: %s", err))
+		}
+		content = string(data)
+	} else {
+		stat, _ := os.Stdin.Stat()
+		if (stat.Mode() & os.ModeCharDevice) == 0 {
+			data, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				exitError(fmt.Sprintf("failed to read stdin: %s", err))
+			}
+			content = string(data)
+		}
+	}
+
+	body := map[string]interface{}{}
+	if content != "" {
+		body["contentMarkdown"] = content
+	}
+	if title != "" {
+		body["title"] = title
+	}
+	if status != "" {
+		body["status"] = status
+	}
+	if metaDescription != "" {
+		body["metaDescription"] = metaDescription
+	}
+
+	if len(body) == 0 {
+		exitError("nothing to update — provide content (--file or stdin), --title, --status, or --meta-description")
+	}
+
+	var result ArticleResponse
+	err = client.PatchJSON(fmt.Sprintf("/websites/%s/articles/%s", websiteID, articleID), body, &result)
+	if err != nil {
+		exitError(err.Error())
+	}
+
+	if isJSON() {
+		printJSON(result.Data)
+		return
+	}
+
+	fmt.Printf("Article updated\n")
+	fmt.Printf("  ID:     %s\n", result.Data.ID)
+	fmt.Printf("  Title:  %s\n", result.Data.Title)
+	fmt.Printf("  Status: %s\n", result.Data.Status)
+}
+
 func PublishArticle(websiteID string, articleID string, publishedURL string) {
 	client, err := api.NewClient()
 	if err != nil {

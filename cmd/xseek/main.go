@@ -40,6 +40,7 @@ Commands:
   articles list <website>           List articles in Content Studio
   articles push <website>           Push a new article (stdin or --file)
   articles get <website> <id>       Get article content
+  articles update <website> <id>   Update an existing article's content
   articles publish <website> <id> <url>  Mark article as published
   version                           Print version
 
@@ -294,6 +295,12 @@ func main() {
 				os.Exit(1)
 			}
 			commands.GetArticle(args[2], args[3])
+		case "update":
+			if len(args) < 4 {
+				fmt.Fprintln(os.Stderr, "Usage: xseek articles update <website> <articleId> [--file article.md] [--title \"...\"] [--status draft]")
+				os.Exit(1)
+			}
+			commands.UpdateArticle(args[2], args[3], flags["file"], flags["title"], flags["status"], flags["meta-description"])
 		case "publish":
 			if len(args) < 5 {
 				fmt.Fprintln(os.Stderr, "Usage: xseek articles publish <website> <articleId> <url>")
