@@ -149,7 +149,7 @@ func PushArticle(websiteID string, title string, filePath string, status string,
 	if status != "" {
 		body["status"] = status
 	} else {
-		body["status"] = "ready"
+		body["status"] = "draft"
 	}
 	if metaDescription != "" {
 		body["metaDescription"] = metaDescription
