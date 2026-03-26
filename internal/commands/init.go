@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -113,13 +112,11 @@ func Init() {
 	}
 
 	// Update channel UI if installed
-	channelDir := channelPath()
-	if channelInstalled(channelDir) {
+	chDir := channelPath()
+	if channelInstalled(chDir) {
 		fmt.Println()
 		fmt.Println("Updating channel UI...")
-		pullCmd := exec.Command("git", "pull", "--rebase", "origin", "main")
-		pullCmd.Dir = channelDir
-		if err := pullCmd.Run(); err != nil {
+		if err := installOrUpdateChannel(chDir); err != nil {
 			fmt.Fprintf(os.Stderr, "  Warning: could not update channel UI: %s\n", err)
 		} else {
 			fmt.Println("  ✓ Channel UI updated")
