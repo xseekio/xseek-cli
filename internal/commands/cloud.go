@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	channelRepoZip = "https://github.com/xseekio/xseek_claude_code_ui_channel/archive/refs/heads/main.zip"
-	channelDir     = "channel-ui"
-	defaultPort    = "8787"
+	channelBundleURL = "https://cli.xseek.io/channel-ui.zip"
+	channelRepoZip   = "https://github.com/xseekio/xseek_claude_code_ui_channel/archive/refs/heads/main.zip"
+	channelDir       = "channel-ui"
+	defaultPort      = "8787"
 )
 
 func channelPath() string {
@@ -52,11 +53,20 @@ func CloudStart(port string) {
 	}
 
 	// 3. Write .mcp.json in the current directory so Claude Code can find the server
+	// Use local tsx binary if available, otherwise fall back to npx
+	tsxPath := filepath.Join(dir, "node_modules", ".bin", "tsx")
+	mcpCommand := "npx"
+	mcpArgs := []string{"tsx", serverPath}
+	if _, err := os.Stat(tsxPath); err == nil {
+		mcpCommand = tsxPath
+		mcpArgs = []string{serverPath}
+	}
+
 	mcpConfig := map[string]interface{}{
 		"mcpServers": map[string]interface{}{
 			"channel-ui": map[string]interface{}{
-				"command": "npx",
-				"args":    []string{"tsx", serverPath},
+				"command": mcpCommand,
+				"args":    mcpArgs,
 			},
 		},
 	}
@@ -133,8 +143,14 @@ func channelInstalled(dir string) bool {
 // installOrUpdateChannel downloads the latest zip from GitHub and extracts it.
 // Always re-downloads to ensure the latest version (no git required).
 func installOrUpdateChannel(dir string) error {
-	// Download zip
-	resp, err := http.Get(channelRepoZip)
+	// Try bundled zip first (includes node_modules), fall back to GitHub
+	resp, err := http.Get(channelBundleURL)
+	if err != nil || resp.StatusCode != 200 {
+		if resp != nil {
+			resp.Body.Close()
+		}
+		resp, err = http.Get(channelRepoZip)
+	}
 	if err != nil {
 		return fmt.Errorf("download failed: %w", err)
 	}
@@ -176,20 +192,26 @@ func installOrUpdateChannel(dir string) error {
 		return fmt.Errorf("failed to extract: %w", err)
 	}
 
-	// Restore node_modules
-	if hasNodeModules {
-		os.Rename(tmpNM, nodeModulesPath)
+	// Check if bundle included node_modules
+	if _, err := os.Stat(nodeModulesPath); err == nil {
+		// Bundle had node_modules — clean up backup
+		os.RemoveAll(tmpNM)
+		return nil
 	}
 
-	// npm install only on first install
-	if !hasNodeModules {
-		npmCmd := exec.Command("npm", "install")
-		npmCmd.Dir = dir
-		npmCmd.Stdout = os.Stdout
-		npmCmd.Stderr = os.Stderr
-		if err := npmCmd.Run(); err != nil {
-			return fmt.Errorf("npm install failed: %w", err)
-		}
+	// Restore backed-up node_modules
+	if hasNodeModules {
+		os.Rename(tmpNM, nodeModulesPath)
+		return nil
+	}
+
+	// No node_modules at all — npm install as last resort
+	npmCmd := exec.Command("npm", "install")
+	npmCmd.Dir = dir
+	npmCmd.Stdout = os.Stdout
+	npmCmd.Stderr = os.Stderr
+	if err := npmCmd.Run(); err != nil {
+		return fmt.Errorf("npm install failed: %w", err)
 	}
 
 	return nil
