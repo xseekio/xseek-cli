@@ -160,10 +160,11 @@ func installOrUpdateChannel(dir string) error {
 	// Remove old install (keep node_modules if they exist for speed)
 	nodeModulesPath := filepath.Join(dir, "node_modules")
 	hasNodeModules := false
+	// Backup node_modules OUTSIDE the dir so RemoveAll doesn't delete it
+	home, _ := os.UserHomeDir()
+	tmpNM := filepath.Join(home, ".xseek", ".node_modules_backup")
 	if _, err := os.Stat(nodeModulesPath); err == nil {
 		hasNodeModules = true
-		// Move node_modules to temp location
-		tmpNM := nodeModulesPath + ".bak"
 		os.RemoveAll(tmpNM)
 		os.Rename(nodeModulesPath, tmpNM)
 	}
@@ -177,11 +178,10 @@ func installOrUpdateChannel(dir string) error {
 
 	// Restore node_modules
 	if hasNodeModules {
-		tmpNM := nodeModulesPath + ".bak"
 		os.Rename(tmpNM, nodeModulesPath)
 	}
 
-	// npm install if needed
+	// npm install only on first install
 	if !hasNodeModules {
 		npmCmd := exec.Command("npm", "install")
 		npmCmd.Dir = dir
