@@ -298,3 +298,86 @@ func PublishArticle(websiteID string, articleID string, publishedURL string) {
 	fmt.Printf("  Title: %s\n", result.Data.Title)
 	fmt.Printf("  URL:   %s\n", publishedURL)
 }
+
+type CommentItem struct {
+	ID           string  `json:"id"`
+	UserName     *string `json:"userName"`
+	SelectedText string  `json:"selectedText"`
+	Comment      string  `json:"comment"`
+	Resolved     bool    `json:"resolved"`
+	CreatedAt    string  `json:"createdAt"`
+}
+
+type CommentsResponse struct {
+	Success bool `json:"success"`
+	Data    struct {
+		Comments []CommentItem `json:"comments"`
+	} `json:"data"`
+}
+
+func ListComments(websiteID string, articleID string) {
+	client, err := api.NewClient()
+	if err != nil {
+		exitError(err.Error())
+	}
+
+	websiteID = resolveWebsiteID(client, websiteID)
+
+	var result CommentsResponse
+	err = client.GetJSON(fmt.Sprintf("/websites/%s/articles/%s/comments", websiteID, articleID), nil, &result)
+	if err != nil {
+		exitError(err.Error())
+	}
+
+	comments := result.Data.Comments
+
+	if isJSON() {
+		printJSON(comments)
+		return
+	}
+
+	if len(comments) == 0 {
+		fmt.Println("No comments on this article.")
+		return
+	}
+
+	fmt.Printf("%d comment(s)\n", len(comments))
+	fmt.Println(strings.Repeat("─", 60))
+	for _, c := range comments {
+		status := "○"
+		if c.Resolved {
+			status = "✓"
+		}
+		name := "Unknown"
+		if c.UserName != nil {
+			name = *c.UserName
+		}
+		fmt.Printf("  %s [%s] %s\n", status, name, c.CreatedAt[:10])
+		fmt.Printf("    \"%s\"\n", c.SelectedText)
+		fmt.Printf("    → %s\n\n", c.Comment)
+	}
+}
+
+func ResolveComment(websiteID string, articleID string, commentID string) {
+	client, err := api.NewClient()
+	if err != nil {
+		exitError(err.Error())
+	}
+
+	websiteID = resolveWebsiteID(client, websiteID)
+
+	body := map[string]interface{}{
+		"commentId": commentID,
+		"resolved":  true,
+	}
+
+	var result struct {
+		Success bool `json:"success"`
+	}
+	err = client.PatchJSON(fmt.Sprintf("/websites/%s/articles/%s/comments", websiteID, articleID), body, &result)
+	if err != nil {
+		exitError(err.Error())
+	}
+
+	fmt.Println("Comment resolved ✓")
+}

@@ -307,6 +307,16 @@ func main() {
 				os.Exit(1)
 			}
 			commands.PublishArticle(args[2], args[3], args[4])
+		case "comments":
+			if len(args) < 4 {
+				fmt.Fprintln(os.Stderr, "Usage: xseek articles comments <website> <articleId> [--resolve <commentId>]")
+				os.Exit(1)
+			}
+			if resolveId := flags["resolve"]; resolveId != "" {
+				commands.ResolveComment(args[2], args[3], resolveId)
+			} else {
+				commands.ListComments(args[2], args[3])
+			}
 		default:
 			fmt.Fprintf(os.Stderr, "Unknown articles subcommand: %s\nRun 'xseek articles --help' for usage.\n", args[1])
 			os.Exit(1)
