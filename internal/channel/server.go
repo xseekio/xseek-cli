@@ -168,10 +168,9 @@ func (s *Server) broadcastSessionsList() {
 func (s *Server) writeStdout(data []byte) {
 	s.stdinMu.Lock()
 	defer s.stdinMu.Unlock()
-	// MCP uses Content-Length header framing (like LSP)
-	header := fmt.Sprintf("Content-Length: %d\r\n\r\n", len(data))
-	os.Stdout.WriteString(header)
+	// MCP stdio uses newline-delimited JSON
 	os.Stdout.Write(data)
+	os.Stdout.Write([]byte("\n"))
 }
 
 func (s *Server) sendNotification(method string, params interface{}) {
@@ -195,48 +194,18 @@ func (s *Server) sendResponse(id interface{}, result interface{}) {
 }
 
 func (s *Server) handleMCPStdio() {
-	reader := bufio.NewReader(os.Stdin)
+	scanner := bufio.NewScanner(os.Stdin)
+	// Allow up to 1MB per message
+	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024)
 
-	for {
-		// Read Content-Length header
-		var contentLength int
-		for {
-			line, err := reader.ReadString('\n')
-			if err != nil {
-				// log.Printf("[channel-ui] stdin closed: %s", err)
-				return
-			}
-			line = strings.TrimSpace(line)
-			if line == "" {
-				break // End of headers
-			}
-			if strings.HasPrefix(line, "Content-Length:") {
-				fmt.Sscanf(strings.TrimPrefix(line, "Content-Length:"), "%d", &contentLength)
-			}
-		}
-
-		if contentLength == 0 {
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
 			continue
 		}
 
-		// Read the JSON body
-		body := make([]byte, contentLength)
-		n, err := reader.Read(body)
-		if err != nil || n != contentLength {
-			// Try reading remaining bytes
-			for n < contentLength {
-				m, err := reader.Read(body[n:])
-				if err != nil {
-					// log.Printf("[channel-ui] Failed to read body: %s", err)
-					break
-				}
-				n += m
-			}
-		}
-
 		var req jsonrpcRequest
-		if err := json.Unmarshal(body[:n], &req); err != nil {
-			// log.Printf("[channel-ui] Failed to parse JSON-RPC: %s", err)
+		if err := json.Unmarshal([]byte(line), &req); err != nil {
 			continue
 		}
 
