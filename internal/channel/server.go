@@ -506,7 +506,7 @@ func (s *Server) Run() error {
 		return fmt.Errorf("port %d already in use: %w", s.port, err)
 	}
 
-	fmt.Fprintf(os.Stderr, "[channel-ui] http://127.0.0.1:%d\n", s.port)
+	// No stderr output — Claude Code interprets any stderr as an error
 
 	// Serve HTTP (blocks)
 	return http.Serve(listener, mux)
