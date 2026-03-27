@@ -112,15 +112,6 @@ func Init() {
 		fmt.Printf("%d/%d skills installed.\n", installed, len(skillDefinitions))
 	}
 
-	// Install or update channel UI
-	chDir := channelPath()
-	fmt.Println()
-	fmt.Println("Installing channel UI...")
-	if err := installOrUpdateChannel(chDir); err != nil {
-		fmt.Fprintf(os.Stderr, "  Warning: could not install channel UI: %s\n", err)
-	} else {
-		fmt.Println("  ✓ Channel UI ready")
-	}
 
 	fmt.Println()
 	fmt.Println("Open Claude Code and type:")

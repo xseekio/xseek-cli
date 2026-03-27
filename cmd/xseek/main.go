@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/xseekio/xseek-cli/internal/api"
+	"github.com/xseekio/xseek-cli/internal/channel"
 	"github.com/xseekio/xseek-cli/internal/commands"
 )
 
@@ -142,6 +143,23 @@ func main() {
 	}
 
 	switch args[0] {
+	case "channel-server":
+		// Hidden command — runs the MCP channel server (called by Claude Code via .mcp.json)
+		p := 8787
+		if flags["port"] != "" {
+			if v, err := fmt.Sscanf(flags["port"], "%d", &p); err != nil || v == 0 {
+				p = 8787
+			}
+		}
+		if envPort := os.Getenv("CHANNEL_UI_PORT"); envPort != "" {
+			fmt.Sscanf(envPort, "%d", &p)
+		}
+		srv := channel.NewServer(p)
+		if err := srv.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "Channel server error: %s\n", err)
+			os.Exit(1)
+		}
+
 	case "init":
 		commands.Init()
 
