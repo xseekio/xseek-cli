@@ -94,34 +94,21 @@ func CloudStart(port string) {
 
 	cwd, _ := os.Getwd()
 	mcpPath := filepath.Join(cwd, ".mcp.json")
-	needsWrite := true
 
+	// Always update channel-ui entry to ensure correct path
 	if existing, err := os.ReadFile(mcpPath); err == nil {
 		var existingConfig map[string]interface{}
 		if json.Unmarshal(existing, &existingConfig) == nil {
 			if servers, ok := existingConfig["mcpServers"].(map[string]interface{}); ok {
-				if _, hasChannel := servers["channel-ui"]; hasChannel {
-					needsWrite = false
-				}
+				servers["channel-ui"] = mcpConfig["mcpServers"].(map[string]interface{})["channel-ui"]
+				mcpConfig = existingConfig
 			}
 		}
 	}
 
-	if needsWrite {
-		if existing, err := os.ReadFile(mcpPath); err == nil {
-			var existingConfig map[string]interface{}
-			if json.Unmarshal(existing, &existingConfig) == nil {
-				if servers, ok := existingConfig["mcpServers"].(map[string]interface{}); ok {
-					servers["channel-ui"] = mcpConfig["mcpServers"].(map[string]interface{})["channel-ui"]
-					mcpConfig = existingConfig
-				}
-			}
-		}
-
-		mcpJSON, _ := json.MarshalIndent(mcpConfig, "", "  ")
-		if err := os.WriteFile(mcpPath, mcpJSON, 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: could not write .mcp.json: %s\n", err)
-		}
+	mcpJSON, _ := json.MarshalIndent(mcpConfig, "", "  ")
+	if err := os.WriteFile(mcpPath, mcpJSON, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not write .mcp.json: %s\n", err)
 	}
 
 	fmt.Println("xSeek Cloud")
