@@ -481,12 +481,13 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 // ── Run ─────────────────────────────────────────────────────────
 
 func (s *Server) Run() error {
-	// Serve HTML UI
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/ws" {
-			s.handleWebSocket(w, r)
-			return
-		}
+	mux := http.NewServeMux()
+
+	// WebSocket endpoint
+	mux.HandleFunc("/ws", s.handleWebSocket)
+
+	// Serve HTML UI for everything else
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		html, err := embeddedFS.ReadFile("index.html")
 		if err != nil {
 			http.Error(w, "UI not found", 500)
@@ -510,5 +511,5 @@ func (s *Server) Run() error {
 	go s.handleMCPStdio()
 
 	// Serve HTTP (blocks)
-	return http.Serve(listener, nil)
+	return http.Serve(listener, mux)
 }
