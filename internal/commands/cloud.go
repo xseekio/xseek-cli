@@ -91,6 +91,29 @@ func CloudStart(port string) {
 		fmt.Fprintf(os.Stderr, "Warning: could not write .mcp.json: %s\n", err)
 	}
 
+	// Also update global ~/.mcp.json if it has a stale channel-ui entry
+	home, _ := os.UserHomeDir()
+	globalMcpPath := filepath.Join(home, ".mcp.json")
+	if existing, err := os.ReadFile(globalMcpPath); err == nil {
+		var globalConfig map[string]interface{}
+		if json.Unmarshal(existing, &globalConfig) == nil {
+			if servers, ok := globalConfig["mcpServers"].(map[string]interface{}); ok {
+				if _, has := servers["channel-ui"]; has {
+					channelEntry := map[string]interface{}{
+						"command": xseekPath,
+						"args":    []string{"channel-server", "--port", port},
+						"env":     map[string]string{"CHANNEL_UI_PORT": port},
+					}
+					servers["channel-ui"] = channelEntry
+					// Also remove stale "channelui" if present
+					delete(servers, "channelui")
+					data, _ := json.MarshalIndent(globalConfig, "", "  ")
+					os.WriteFile(globalMcpPath, data, 0644)
+				}
+			}
+		}
+	}
+
 	fmt.Println("xSeek Cloud")
 	fmt.Println()
 	fmt.Printf("  Channel UI:  http://127.0.0.1:%s\n", port)
