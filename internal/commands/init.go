@@ -25,6 +25,7 @@ var skillDefinitions = []struct {
 	ArgHint     string
 }{
 	{"add-keywords", "add-keywords.md", "Enrich an existing article with relevant SEO keywords from Google search data. Run this when a user wants to add keywords to an article.", "[url or articleId]"},
+	{"apply-comments", "apply-comments.md", "Apply unresolved comments on articles — read comments, apply changes, resolve them. Run this when articles have feedback to address.", "[articleId]"},
 	{"aeo-audit", "aeo-audit.md", "Full AI visibility assessment. Run this when a user asks to audit their AI search presence or check AEO performance.", ""},
 	{"fact-check", "fact-check.md", "Verify pricing, features, and claims in an article against official sources. Run this to validate competitor data before publishing.", "[url or articleId]"},
 	{"find-opportunities", "find-opportunities.md", "Content gap finder for AI search. Run this when a user wants to find topics where competitors get cited by AI but they don't.", ""},
@@ -84,7 +85,7 @@ func Init() {
 	// Cleanup old xSeek skills that are no longer in the definitions
 	// Only removes skills we previously installed — never touches other skills
 	previousSkills := map[string]bool{
-		"aeo-audit": true, "add-keywords": true, "fact-check": true,
+		"aeo-audit": true, "add-keywords": true, "apply-comments": true, "fact-check": true,
 		"find-opportunities": true, "generate-article": true, "geo-methods": true,
 		"optimize-page": true, "publish-articles": true, "rewrite-page": true,
 		"track-visibility": true, "weekly-report": true, "writing-rules": true,
