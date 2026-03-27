@@ -7,7 +7,6 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -129,7 +128,7 @@ func (s *Server) createSession() *chatSession {
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	s.sessions[id] = sess
-	log.Printf("[channel-ui] Session created: chat_id=%s", id)
+	// log.Printf("[channel-ui] Session created: chat_id=%s", id)
 	return sess
 }
 
@@ -204,7 +203,7 @@ func (s *Server) handleMCPStdio() {
 		for {
 			line, err := reader.ReadString('\n')
 			if err != nil {
-				log.Printf("[channel-ui] stdin closed: %s", err)
+				// log.Printf("[channel-ui] stdin closed: %s", err)
 				return
 			}
 			line = strings.TrimSpace(line)
@@ -228,7 +227,7 @@ func (s *Server) handleMCPStdio() {
 			for n < contentLength {
 				m, err := reader.Read(body[n:])
 				if err != nil {
-					log.Printf("[channel-ui] Failed to read body: %s", err)
+					// log.Printf("[channel-ui] Failed to read body: %s", err)
 					break
 				}
 				n += m
@@ -237,7 +236,7 @@ func (s *Server) handleMCPStdio() {
 
 		var req jsonrpcRequest
 		if err := json.Unmarshal(body[:n], &req); err != nil {
-			log.Printf("[channel-ui] Failed to parse JSON-RPC: %s", err)
+			// log.Printf("[channel-ui] Failed to parse JSON-RPC: %s", err)
 			continue
 		}
 
@@ -258,7 +257,7 @@ Always reply to every message — the user is waiting for your response in the U
 
 		case "notifications/initialized":
 			// No response needed for notifications
-			log.Printf("[channel-ui] MCP initialized")
+			// log.Printf("[channel-ui] MCP initialized")
 
 		case "tools/list":
 			s.sendResponse(req.ID, mcpToolsResult{
@@ -354,7 +353,7 @@ Always reply to every message — the user is waiting for your response in the U
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	ws, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("[channel-ui] WebSocket upgrade failed: %s", err)
+		// log.Printf("[channel-ui] WebSocket upgrade failed: %s", err)
 		return
 	}
 
@@ -374,7 +373,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	})
 	ws.WriteMessage(websocket.TextMessage, loopsData)
 
-	log.Printf("[channel-ui] WebSocket connected")
+	// log.Printf("[channel-ui] WebSocket connected")
 
 	defer func() {
 		if boundChatID != "" {
@@ -383,7 +382,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				delete(s.clients, boundChatID)
 			}
 			s.mu.Unlock()
-			log.Printf("[channel-ui] Client disconnected from session: chat_id=%s", boundChatID)
+			// log.Printf("[channel-ui] Client disconnected from session: chat_id=%s", boundChatID)
 		}
 		ws.Close()
 	}()
@@ -466,7 +465,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			})
 
 			s.broadcastSessionsList()
-			log.Printf("[channel-ui] Message forwarded to Claude: chat_id=%s", boundChatID)
+			// log.Printf("[channel-ui] Message forwarded to Claude: chat_id=%s", boundChatID)
 
 		case "loops:list":
 			resp, _ := json.Marshal(map[string]interface{}{
@@ -497,6 +496,9 @@ func (s *Server) Run() error {
 		w.Write(html)
 	})
 
+	// Start MCP protocol handler FIRST (Claude Code sends initialize immediately)
+	go s.handleMCPStdio()
+
 	// Start HTTP server
 	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
 	listener, err := net.Listen("tcp", addr)
@@ -504,11 +506,7 @@ func (s *Server) Run() error {
 		return fmt.Errorf("port %d already in use: %w", s.port, err)
 	}
 
-	log.Printf("[channel-ui] Web UI running at http://%s", addr)
-	log.Printf("[channel-ui] Open this URL in your browser to chat with Claude Code")
-
-	// Handle MCP protocol over stdio in a goroutine
-	go s.handleMCPStdio()
+	fmt.Fprintf(os.Stderr, "[channel-ui] http://127.0.0.1:%d\n", s.port)
 
 	// Serve HTTP (blocks)
 	return http.Serve(listener, mux)
