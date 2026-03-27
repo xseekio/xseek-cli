@@ -74,20 +74,14 @@ func CloudStart(port string) {
 		exitError("Claude Code CLI not found. Install it first:\n  npm install -g @anthropic-ai/claude-code")
 	}
 
-	serverPath := filepath.Join(dir, "channel", "server.ts")
+	serverPath := filepath.Join(dir, "server.cjs")
 	if _, err := os.Stat(serverPath); err != nil {
 		exitError(fmt.Sprintf("channel server not found at %s\nRun 'xseek init' to reinstall", serverPath))
 	}
 
-	// 3. Write .mcp.json in the current directory so Claude Code can find the server
-	// Use local tsx binary if available, otherwise fall back to npx
-	tsxPath := filepath.Join(dir, "node_modules", ".bin", "tsx")
-	mcpCommand := "npx"
-	mcpArgs := []string{"tsx", serverPath}
-	if _, err := os.Stat(tsxPath); err == nil {
-		mcpCommand = tsxPath
-		mcpArgs = []string{serverPath}
-	}
+	// 3. Write .mcp.json — uses node directly, no npm/npx/tsx needed
+	mcpCommand := "node"
+	mcpArgs := []string{serverPath}
 
 	mcpConfig := map[string]interface{}{
 		"mcpServers": map[string]interface{}{
@@ -162,8 +156,8 @@ func CloudStart(port string) {
 }
 
 func channelInstalled(dir string) bool {
-	nodeModules := filepath.Join(dir, "node_modules")
-	_, err := os.Stat(nodeModules)
+	serverFile := filepath.Join(dir, "server.cjs")
+	_, err := os.Stat(serverFile)
 	return err == nil
 }
 
@@ -200,45 +194,11 @@ func installOrUpdateChannel(dir string) error {
 	}
 	tmpFile.Close()
 
-	// Remove old install (keep node_modules if they exist for speed)
-	nodeModulesPath := filepath.Join(dir, "node_modules")
-	hasNodeModules := false
-	// Backup node_modules OUTSIDE the dir so RemoveAll doesn't delete it
-	home, _ := os.UserHomeDir()
-	tmpNM := filepath.Join(home, ".xseek", ".node_modules_backup")
-	if _, err := os.Stat(nodeModulesPath); err == nil {
-		hasNodeModules = true
-		os.RemoveAll(tmpNM)
-		os.Rename(nodeModulesPath, tmpNM)
-	}
-
 	os.RemoveAll(dir)
 
 	// Extract zip
 	if err := extractZip(tmpFile.Name(), dir); err != nil {
 		return fmt.Errorf("failed to extract: %w", err)
-	}
-
-	// Check if bundle included node_modules
-	if _, err := os.Stat(nodeModulesPath); err == nil {
-		// Bundle had node_modules — clean up backup
-		os.RemoveAll(tmpNM)
-		return nil
-	}
-
-	// Restore backed-up node_modules
-	if hasNodeModules {
-		os.Rename(tmpNM, nodeModulesPath)
-		return nil
-	}
-
-	// No node_modules at all — npm install as last resort
-	npmCmd := exec.Command("npm", "install")
-	npmCmd.Dir = dir
-	npmCmd.Stdout = os.Stdout
-	npmCmd.Stderr = os.Stderr
-	if err := npmCmd.Run(); err != nil {
-		return fmt.Errorf("npm install failed: %w", err)
 	}
 
 	return nil
