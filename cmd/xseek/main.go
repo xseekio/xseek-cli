@@ -113,6 +113,8 @@ func main() {
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--help" || args[i] == "-h" {
 			flags["help"] = "true"
+		} else if args[i] == "--no-browser" {
+			flags["no-browser"] = "true"
 		} else if args[i] == "--format" && i+1 < len(args) {
 			commands.OutputFormat = args[i+1]
 			i++
@@ -164,7 +166,7 @@ func main() {
 		commands.Init()
 
 	case "claude":
-		commands.CloudStart(flags["port"])
+		commands.CloudStart(flags["port"], flags["no-browser"] == "true")
 
 	case "skills":
 		commands.ListSkills()

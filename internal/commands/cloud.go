@@ -15,7 +15,7 @@ import (
 
 const defaultPort = "8787"
 
-func CloudStart(port string) {
+func CloudStart(port string, noBrowser bool) {
 	if port == "" {
 		port = defaultPort
 	}
@@ -122,11 +122,13 @@ func CloudStart(port string) {
 	fmt.Println("Starting...")
 	fmt.Println()
 
-	// 5. Open browser after a short delay
-	go func() {
-		time.Sleep(3 * time.Second)
-		openBrowser(fmt.Sprintf("http://127.0.0.1:%s", port))
-	}()
+	// 5. Open browser after a short delay (unless --no-browser)
+	if !noBrowser {
+		go func() {
+			time.Sleep(3 * time.Second)
+			openBrowser(fmt.Sprintf("http://127.0.0.1:%s", port))
+		}()
+	}
 
 	// 6. Launch Claude Code with channel
 	cmd := exec.Command(claudePath,
