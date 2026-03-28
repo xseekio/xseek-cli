@@ -215,13 +215,13 @@ func (s *Server) handleMCPStdio() {
 				ProtocolVersion: "2024-11-05",
 				Capabilities: mcpCapabilities{
 					Experimental: map[string]interface{}{"claude/channel": map[string]interface{}{}},
-					Tools:        map[string]interface{}{},
+					Tools:        map[string]interface{}{"listChanged": true},
 				},
 				ServerInfo: mcpServerInfo{Name: "channel-ui", Version: "1.0.0"},
 				Instructions: `Messages arrive as <channel source="channel-ui" chat_id="...">.
-These are messages from the user through a web chat interface.
-Reply using the "reply" tool, passing the chat_id from the channel tag.
-Always reply to every message — the user is waiting for your response in the UI.`,
+These are real-time messages from a user through a web chat UI.
+You MUST reply to every channel message by calling the "reply" tool with the chat_id from the channel tag and your response text.
+Do NOT respond in the terminal — the user cannot see terminal output. The ONLY way they see your response is through the "reply" tool.`,
 			})
 
 		case "notifications/initialized":
