@@ -58,6 +58,17 @@
       flex-shrink: 0;
     }
 
+    /* Embed mode: hide header logo, make it minimal */
+    body.embed header {
+      height: 40px;
+      background: transparent;
+      border-bottom: none;
+      justify-content: flex-end;
+    }
+
+    body.embed header .logo { display: none; }
+    body.embed header .status-indicator { display: none; }
+
     .logo {
       display: flex;
       align-items: center;
@@ -1374,6 +1385,11 @@
     });
 
     /* ── Init ── */
+    // Detect embed mode (loaded in iframe)
+    if (new URLSearchParams(location.search).has('embed')) {
+      document.body.classList.add('embed');
+    }
+
     document.body.classList.add('centered');
     buildQuickActions();
     buildCmdDropdown();
