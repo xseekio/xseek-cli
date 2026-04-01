@@ -113,6 +113,14 @@ func Init() {
 	}
 
 
+	// Install user-level CLAUDE.md so Claude Code always knows about xSeek
+	claudeMdPath := filepath.Join(home, ".claude", "CLAUDE.md")
+	if err := installClaudeMd(claudeMdPath); err != nil {
+		fmt.Fprintf(os.Stderr, "  ✗ CLAUDE.md — %s\n", err)
+	} else {
+		fmt.Println("  ✓ CLAUDE.md (xSeek context for Claude Code)")
+	}
+
 	fmt.Println()
 	fmt.Println("Open Claude Code and type:")
 	fmt.Println("  /generate-article")
@@ -157,6 +165,75 @@ func buildSkillFile(name, description, argHint, content string) string {
 	sb.WriteString("---\n\n")
 	sb.WriteString(content)
 	return sb.String()
+}
+
+const xseekClaudeMdMarker = "<!-- xseek-managed -->"
+
+const xseekClaudeMdContent = `<!-- xseek-managed -->
+# xSeek — AI Visibility & Content Platform
+
+You have access to xSeek skills for AI search optimization. xSeek helps brands track and improve their visibility in AI search engines (ChatGPT, Perplexity, Gemini, etc.).
+
+## What is xSeek?
+
+xSeek is an AI visibility platform that:
+- Tracks how AI search engines mention a brand vs competitors
+- Finds content gaps where competitors get cited but the brand doesn't
+- Generates AI-optimized content to improve citations
+- Audits websites for Answer Engine Optimization (AEO)
+
+## Available Skills (slash commands)
+
+- ` + "`/generate-article`" + ` — Generate an AI-optimized article from content gap data
+- ` + "`/find-opportunities`" + ` — Find topics where competitors get cited by AI but you don't
+- ` + "`/aeo-audit`" + ` — Full AI visibility assessment
+- ` + "`/track-visibility`" + ` — Quick snapshot of AI search presence
+- ` + "`/weekly-report`" + ` — AI visibility and SEO performance summary
+- ` + "`/optimize-page`" + ` — Optimize a specific URL for AI citations
+- ` + "`/rewrite-page`" + ` — Full AI-optimized content rewrite
+- ` + "`/add-keywords`" + ` — Enrich an article with SEO keywords
+- ` + "`/fact-check`" + ` — Verify claims against official sources
+- ` + "`/publish-articles`" + ` — Publish ready articles to the website
+- ` + "`/apply-comments`" + ` — Apply feedback comments on articles
+
+## xSeek CLI
+
+The xSeek CLI (` + "`xseek`" + `) connects Claude Code to the xSeek platform. Key commands:
+- ` + "`xseek brand-context`" + ` — Get brand voice, audiences, and knowledge base
+- ` + "`xseek articles`" + ` — List and manage Content Studio articles
+- ` + "`xseek opportunities`" + ` — View content gap opportunities
+- ` + "`xseek prompts`" + ` — View tracking queries and results
+- ` + "`xseek keywords`" + ` — Search keyword data
+- ` + "`xseek sources`" + ` — View AI citation sources
+
+Run ` + "`xseek -h`" + ` for all available commands.
+
+## Workflow
+
+1. Use ` + "`/find-opportunities`" + ` to discover content gaps
+2. Use ` + "`/generate-article`" + ` to create content targeting those gaps
+3. Use ` + "`/fact-check`" + ` to validate before publishing
+4. Use ` + "`/publish-articles`" + ` to push to the website
+5. Use ` + "`/track-visibility`" + ` to monitor results
+`
+
+func installClaudeMd(path string) error {
+	// If file exists, check if it's xSeek-managed or user-owned
+	if existing, err := os.ReadFile(path); err == nil {
+		content := string(existing)
+		if strings.Contains(content, xseekClaudeMdMarker) {
+			// xSeek-managed — safe to overwrite
+			return os.WriteFile(path, []byte(xseekClaudeMdContent), 0644)
+		}
+		// User has their own CLAUDE.md — append xSeek section if not already there
+		if strings.Contains(content, "xSeek") {
+			return nil // Already has xSeek content
+		}
+		updated := content + "\n\n" + xseekClaudeMdContent
+		return os.WriteFile(path, []byte(updated), 0644)
+	}
+	// No file — create it
+	return os.WriteFile(path, []byte(xseekClaudeMdContent), 0644)
 }
 
 // Update re-downloads and reinstalls all skills
