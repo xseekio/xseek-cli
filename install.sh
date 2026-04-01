@@ -17,6 +17,7 @@ detect_platform() {
   case "$OS" in
     linux)  OS="linux" ;;
     darwin) OS="darwin" ;;
+    mingw*|msys*|cygwin*) OS="windows" ;;
     *)
       echo "Error: Unsupported OS: $OS"
       exit 1
@@ -31,6 +32,14 @@ detect_platform() {
       exit 1
       ;;
   esac
+
+  # Set binary name and archive format based on OS
+  if [ "$OS" = "windows" ]; then
+    BINARY="xseek.exe"
+    ARCHIVE_EXT="zip"
+  else
+    ARCHIVE_EXT="tar.gz"
+  fi
 }
 
 # Get latest release version from GitHub
@@ -44,12 +53,17 @@ get_latest_version() {
 
 # Add ~/.xseek/bin to PATH in shell profile
 add_to_path() {
-  SHELL_NAME="$(basename "$SHELL")"
-  case "$SHELL_NAME" in
-    zsh)  PROFILE="${HOME}/.zshrc" ;;
-    bash) PROFILE="${HOME}/.bashrc" ;;
-    *)    PROFILE="${HOME}/.profile" ;;
-  esac
+  if [ "$OS" = "windows" ]; then
+    # On Git Bash, add to .bashrc
+    PROFILE="${HOME}/.bashrc"
+  else
+    SHELL_NAME="$(basename "$SHELL")"
+    case "$SHELL_NAME" in
+      zsh)  PROFILE="${HOME}/.zshrc" ;;
+      bash) PROFILE="${HOME}/.bashrc" ;;
+      *)    PROFILE="${HOME}/.profile" ;;
+    esac
+  fi
 
   if [ -f "$PROFILE" ] && grep -q "${INSTALL_DIR}" "$PROFILE" 2>/dev/null; then
     return 0
@@ -68,7 +82,7 @@ main() {
   detect_platform
   get_latest_version
 
-  FILENAME="xseek_${VERSION}_${OS}_${ARCH}.tar.gz"
+  FILENAME="xseek_${VERSION}_${OS}_${ARCH}.${ARCHIVE_EXT}"
   URL="https://github.com/${REPO}/releases/download/v${VERSION}/${FILENAME}"
 
   echo "  Platform:  ${OS}/${ARCH}"
@@ -87,7 +101,11 @@ main() {
   curl -fsSL "$URL" -o "${TMP_DIR}/${FILENAME}"
 
   echo "Extracting..."
-  tar -xzf "${TMP_DIR}/${FILENAME}" -C "$TMP_DIR"
+  if [ "$ARCHIVE_EXT" = "zip" ]; then
+    unzip -q "${TMP_DIR}/${FILENAME}" -d "$TMP_DIR"
+  else
+    tar -xzf "${TMP_DIR}/${FILENAME}" -C "$TMP_DIR"
+  fi
 
   echo "Installing..."
   mv "${TMP_DIR}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
