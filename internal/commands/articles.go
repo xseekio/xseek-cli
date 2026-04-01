@@ -43,6 +43,7 @@ type ArticleResponse struct {
 
 type ArticleCreateResponse struct {
 	Success bool `json:"success"`
+	Updated bool `json:"updated"`
 	Data    struct {
 		ID           string  `json:"id"`
 		Title        string  `json:"title"`
@@ -162,11 +163,15 @@ func PushArticle(websiteID string, title string, filePath string, status string,
 	}
 
 	if isJSON() {
-		printJSON(result.Data)
+		printJSON(result)
 		return
 	}
 
-	fmt.Printf("Article created\n")
+	if result.Updated {
+		fmt.Printf("Article updated (existing match found)\n")
+	} else {
+		fmt.Printf("Article created\n")
+	}
 	fmt.Printf("  ID:     %s\n", result.Data.ID)
 	fmt.Printf("  Title:  %s\n", result.Data.Title)
 	fmt.Printf("  Status: %s\n", result.Data.Status)
