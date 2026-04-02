@@ -978,16 +978,9 @@
 
     function selectCommand(idx) {
       const cmd = cmdFiltered[idx] || COMMANDS[idx];
-      if (cmd.needsUrl || cmd.isLoop) {
-        inputEl.value = cmd.cmd + ' ';
-      } else {
-        inputEl.value = cmd.cmd;
-      }
+      inputEl.value = cmd.cmd + (cmd.needsUrl || cmd.isLoop ? ' ' : '');
       hideCmdDropdown();
       inputEl.focus();
-      if (!cmd.needsUrl && !cmd.isLoop) {
-        formEl.dispatchEvent(new Event('submit'));
-      }
     }
 
     function showCmdDropdown(filter) {
