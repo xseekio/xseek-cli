@@ -404,14 +404,6 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				ws.WriteMessage(websocket.TextMessage, resp)
 			}
 
-		case "interrupt":
-			// Send interrupt notification to Claude Code
-			if boundChatID != "" {
-				s.sendNotification("notifications/claude/interrupt", map[string]interface{}{
-					"meta": map[string]string{"chat_id": boundChatID},
-				})
-			}
-
 		case "message":
 			if boundChatID == "" {
 				continue
