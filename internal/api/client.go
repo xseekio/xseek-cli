@@ -52,7 +52,11 @@ func readConfigKey(key string) string {
 		}
 		parts := strings.SplitN(line, "=", 2)
 		if len(parts) == 2 && strings.TrimSpace(parts[0]) == key {
-			return strings.TrimSpace(parts[1])
+			v := strings.TrimSpace(parts[1])
+			if len(v) >= 2 && (v[0] == '"' && v[len(v)-1] == '"' || v[0] == '\'' && v[len(v)-1] == '\'') {
+				v = v[1 : len(v)-1]
+			}
+			return v
 		}
 	}
 	return ""
