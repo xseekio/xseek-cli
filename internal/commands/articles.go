@@ -110,7 +110,7 @@ func ListArticles(websiteID string, status string, pageSize string) {
 	fmt.Printf("\nShowing %d of %d articles\n", len(articles), result.Data.Pagination.Total)
 }
 
-func PushArticle(websiteID string, title string, filePath string, status string, metaDescription string) {
+func PushArticle(websiteID string, title string, filePath string, status string, metaDescription string, keywordTerm string, opportunityID string) {
 	if title == "" {
 		exitError("--title is required")
 	}
@@ -154,6 +154,12 @@ func PushArticle(websiteID string, title string, filePath string, status string,
 	}
 	if metaDescription != "" {
 		body["metaDescription"] = metaDescription
+	}
+	if keywordTerm != "" {
+		body["keywordTerm"] = keywordTerm
+	}
+	if opportunityID != "" {
+		body["opportunityId"] = opportunityID
 	}
 
 	var result ArticleCreateResponse

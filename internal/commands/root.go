@@ -23,3 +23,7 @@ func exitError(msg string) {
 func isJSON() bool {
 	return OutputFormat == "json"
 }
+
+func isMarkdown() bool {
+	return OutputFormat == "markdown" || OutputFormat == "md"
+}
