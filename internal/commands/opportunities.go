@@ -8,6 +8,10 @@ import (
 )
 
 type Opportunity struct {
+	// Persisted UUID from content_opportunities. Use with `xseek articles push
+	// --opportunity-id <id>` or in the desktop deep-link to link a generated
+	// article back to the opportunity it answers.
+	ID                   string           `json:"id"`
 	Query                string           `json:"query"`
 	Frequency            int              `json:"frequency"`
 	Models               []string         `json:"models"`
@@ -91,6 +95,9 @@ func ListOpportunities(websiteID string, businessValue string, contentType strin
 		}
 
 		fmt.Printf("\n%d. \"%s\"\n", i+1, opp.Query)
+		if opp.ID != "" {
+			fmt.Printf("   ID: %s\n", opp.ID)
+		}
 		fmt.Printf("   Value: %-10s  Type: %-12s  Frequency: %dx  Engines: %s\n",
 			value, opp.SuggestedContentType, opp.Frequency, strings.Join(opp.Models, ", "))
 

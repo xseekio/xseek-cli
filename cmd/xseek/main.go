@@ -317,10 +317,10 @@ func main() {
 			commands.GetArticle(args[2], args[3])
 		case "update":
 			if len(args) < 4 {
-				fmt.Fprintln(os.Stderr, "Usage: xseek articles update <website> <articleId> [--file article.md] [--title \"...\"] [--status draft]")
+				fmt.Fprintln(os.Stderr, "Usage: xseek articles update <website> <articleId> [--file article.md] [--title \"...\"] [--status draft] [--opportunity-id <uuid>|none]")
 				os.Exit(1)
 			}
-			commands.UpdateArticle(args[2], args[3], flags["file"], flags["title"], flags["status"], flags["meta-description"])
+			commands.UpdateArticle(args[2], args[3], flags["file"], flags["title"], flags["status"], flags["meta-description"], flags["opportunity-id"])
 		case "publish":
 			if len(args) < 5 {
 				fmt.Fprintln(os.Stderr, "Usage: xseek articles publish <website> <articleId> <url>")

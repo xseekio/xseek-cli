@@ -219,7 +219,7 @@ func GetArticle(websiteID string, articleID string) {
 	}
 }
 
-func UpdateArticle(websiteID string, articleID string, filePath string, title string, status string, metaDescription string) {
+func UpdateArticle(websiteID string, articleID string, filePath string, title string, status string, metaDescription string, opportunityID string) {
 	client, err := api.NewClient()
 	if err != nil {
 		exitError(err.Error())
@@ -259,9 +259,18 @@ func UpdateArticle(websiteID string, articleID string, filePath string, title st
 	if metaDescription != "" {
 		body["metaDescription"] = metaDescription
 	}
+	if opportunityID != "" {
+		// Pass empty string ("") via "none" sentinel if you ever need to unlink;
+		// for now this only links since "" means "leave unchanged".
+		if opportunityID == "none" {
+			body["opportunityId"] = nil
+		} else {
+			body["opportunityId"] = opportunityID
+		}
+	}
 
 	if len(body) == 0 {
-		exitError("nothing to update — provide content (--file or stdin), --title, --status, or --meta-description")
+		exitError("nothing to update — provide content (--file or stdin), --title, --status, --meta-description, or --opportunity-id")
 	}
 
 	var result ArticleResponse
