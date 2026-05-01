@@ -6,12 +6,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
+
+// Tiny shim so PostMultipart can construct a writer without importing
+// mime/multipart at every call site.
+func multipartWriter(buf *bytes.Buffer) *multipart.Writer {
+	return multipart.NewWriter(buf)
+}
 
 const (
 	DefaultBaseURL = "https://www.xseek.io/api/v1"
@@ -246,6 +253,79 @@ func (c *Client) PatchJSON(path string, body interface{}, v interface{}) error {
 	}
 	if resp.StatusCode == 403 {
 		return fmt.Errorf("forbidden — your API key may not have the required privileges")
+	}
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("API error (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	return json.Unmarshal(respBody, v)
+}
+
+// PostMultipart uploads a multipart/form-data request. Used by the images
+// upload endpoint where the file is sent as a binary part rather than a JSON
+// payload. `parts` are non-file form fields; `fileFieldName`/`filePath` is
+// the file part. Returns parsed JSON in v.
+func (c *Client) PostMultipart(
+	path string,
+	parts map[string]string,
+	fileFieldName string,
+	filePath string,
+	v interface{},
+) error {
+	body := &bytes.Buffer{}
+	writer := multipartWriter(body)
+
+	for k, val := range parts {
+		if err := writer.WriteField(k, val); err != nil {
+			return fmt.Errorf("write field %s: %w", k, err)
+		}
+	}
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("open file: %w", err)
+	}
+	defer f.Close()
+
+	part, err := writer.CreateFormFile(fileFieldName, filepath.Base(filePath))
+	if err != nil {
+		return fmt.Errorf("create form file: %w", err)
+	}
+	if _, err := io.Copy(part, f); err != nil {
+		return fmt.Errorf("copy file: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("close writer: %w", err)
+	}
+
+	url := c.baseURL + path
+	req, err := http.NewRequest("POST", url, body)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("User-Agent", "xseek-cli/"+Version)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode == 401 {
+		return fmt.Errorf("unauthorized — check your XSEEK_API_KEY")
+	}
+	if resp.StatusCode == 403 {
+		return fmt.Errorf("forbidden — your API key may need the images:write privilege")
+	}
+	if resp.StatusCode == 413 {
+		return fmt.Errorf("file too large (max 5 MB)")
 	}
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("API error (HTTP %d): %s", resp.StatusCode, string(respBody))

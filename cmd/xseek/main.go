@@ -87,6 +87,7 @@ var commandHelp = map[string]string{
 	"web-searches":   "Usage: xseek web-searches <website>\n\nShow LLM web searches triggered by your prompts.\n\nFlags:\n  --pageSize N     Number of results (default 20)\n  --format json    Output as JSON",
 	"keywords":       "Usage: xseek keywords <website> \"<topic>\"\n\nResearch keywords for a topic using DataForSEO.\nReturns search volume, keyword difficulty, and related keywords.\nAccepts comma-separated topics (max 10).\n\nExamples:\n  xseek keywords mysite.com \"best crm for small business\"\n  xseek keywords mysite.com \"meilleur crm\" --language fr --location 2124\n  xseek keywords mysite.com \"crm tools\" --format json\n\nFlags:\n  --language <code>  Language code (default: en). Examples: fr, es, de, pt\n  --location <code>  Google location code (default: 2840 = US). Common codes:\n                       2124 = Canada, 2250 = France, 2826 = UK,\n                       2276 = Germany, 2724 = Spain, 2076 = Brazil,\n                       2036 = Australia, 2392 = Japan\n  --format json      Output as JSON",
 	"brand-context":  "Usage: xseek brand-context <website>\n\nGet the brand brief: tone, identity (adjectives, signature/banned words, anchors,\nsurface rules), voice guidelines, audiences, knowledge entries, and style samples.\nUsed by article generation and rewrite skills to match your brand's voice.\n\nFlags:\n  --format markdown   Render as a single brand brief (best for AI agents)\n  --format json       Output the raw structured response",
+	"images":         "Usage: xseek images <subcommand> <website> [arguments]\n\nSubcommands:\n  upload <website>   Upload an image (PNG, JPG, WEBP, GIF) and get a public URL\n\nFlags (upload):\n  --file <path>      Path to the image file (required)\n  --alt \"...\"      Alt text for accessibility + SEO\n  --source \"...\"   Provenance tag (e.g. \"competitor-screenshot\", \"product-page\")\n  --format json      Output as JSON\n\nExamples:\n  xseek images upload mysite.com --file ./screenshot.png --alt \"Stripe homepage\" --source competitor-screenshot\n  xseek images upload mysite.com --file ./hero.jpg --alt \"Our product\" --format json",
 	"articles":       "Usage: xseek articles <subcommand> <website> [arguments]\n\nSubcommands:\n  list <website>                    List articles in Content Studio\n  push <website>                    Push a new article\n  get <website> <articleId>         Get article content\n  publish <website> <id> <url>      Mark article as published\n\nFlags (list):\n  --status <status>  Filter by status: draft, ready, published\n  --pageSize N       Number of results (default 20)\n  --format json      Output as JSON\n\nFlags (push):\n  --title \"...\"            Article title (required)\n  --file <path>            Read content from file (alternative to stdin)\n  --status <status>        Article status (default: ready)\n  --meta-description \"...\" Meta description\n  --keyword-term \"...\"     Link this article to a keyword/query (for opportunities linkage)\n  --opportunity-id <uuid>  Link this article to a specific opportunity ID\n  --format json            Output as JSON\n\nExamples:\n  xseek articles list mysite.com\n  cat article.md | xseek articles push mysite.com --title \"My Article\"\n  xseek articles push mysite.com --title \"My Article\" --file article.md\n  xseek articles get mysite.com <id>\n  xseek articles publish mysite.com <id> https://blog.com/article",
 }
 
@@ -290,6 +291,23 @@ func main() {
 			os.Exit(1)
 		}
 		commands.GetBrandContext(args[1])
+
+	case "images":
+		if len(args) < 2 {
+			printCommandHelp("images")
+			os.Exit(1)
+		}
+		switch args[1] {
+		case "upload":
+			if len(args) < 3 {
+				fmt.Fprintln(os.Stderr, "Usage: xseek images upload <website> --file <path> [--alt \"...\"] [--source \"...\"]")
+				os.Exit(1)
+			}
+			commands.UploadImage(args[2], flags["file"], flags["alt"], flags["source"])
+		default:
+			fmt.Fprintf(os.Stderr, "Unknown images subcommand: %s\nRun 'xseek images --help' for usage.\n", args[1])
+			os.Exit(1)
+		}
 
 	case "articles":
 		if len(args) < 2 {
