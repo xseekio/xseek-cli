@@ -110,7 +110,7 @@ func ListArticles(websiteID string, status string, pageSize string) {
 	fmt.Printf("\nShowing %d of %d articles\n", len(articles), result.Data.Pagination.Total)
 }
 
-func PushArticle(websiteID string, title string, filePath string, status string, metaDescription string, keywordTerm string, opportunityID string) {
+func PushArticle(websiteID string, title string, filePath string, status string, metaDescription string, keywordTerm string, keywords string, opportunityID string) {
 	if title == "" {
 		exitError("--title is required")
 	}
@@ -157,6 +157,20 @@ func PushArticle(websiteID string, title string, filePath string, status string,
 	}
 	if keywordTerm != "" {
 		body["keywordTerm"] = keywordTerm
+	}
+	// Full target-keyword list (comma-separated). The API stores it as
+	// keyword_terms (primary first — keywordTerm is promoted to the front
+	// server-side); an article targets a primary + several secondary terms.
+	if keywords != "" {
+		var list []string
+		for _, k := range strings.Split(keywords, ",") {
+			if t := strings.TrimSpace(k); t != "" {
+				list = append(list, t)
+			}
+		}
+		if len(list) > 0 {
+			body["keywordTerms"] = list
+		}
 	}
 	if opportunityID != "" {
 		body["opportunityId"] = opportunityID
