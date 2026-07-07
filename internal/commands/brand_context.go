@@ -2,10 +2,21 @@ package commands
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/xseekio/xseek-cli/internal/api"
 )
+
+// sortedKeys returns a map's keys in deterministic order.
+func sortedKeys(m map[string][]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
 
 // BrandIdentity mirrors the JSONB column on websites — kept in sync with
 // /api/v1/websites/{id}/brand-context. All fields are optional; an unfilled
@@ -37,9 +48,8 @@ type Audience struct {
 // ProductCatalog is a lightweight index of the client's product catalog —
 // enough to know it exists and how to filter it via `xseek products`.
 type ProductCatalog struct {
-	Count      int      `json:"count"`
-	Regions    []string `json:"regions"`
-	Categories []string `json:"categories"`
+	Count  int                 `json:"count"`
+	Facets map[string][]string `json:"facets"`
 }
 
 type BrandContextData struct {
@@ -202,11 +212,8 @@ func renderBrandContextHuman(d BrandContextData) {
 	if d.ProductCatalog != nil && d.ProductCatalog.Count > 0 {
 		fmt.Println()
 		fmt.Printf("Product Catalog: %d products\n", d.ProductCatalog.Count)
-		if len(d.ProductCatalog.Regions) > 0 {
-			fmt.Printf("  Regions:    %s\n", strings.Join(d.ProductCatalog.Regions, ", "))
-		}
-		if len(d.ProductCatalog.Categories) > 0 {
-			fmt.Printf("  Categories: %s\n", strings.Join(d.ProductCatalog.Categories, ", "))
+		for _, k := range sortedKeys(d.ProductCatalog.Facets) {
+			fmt.Printf("  %s: %s\n", k, strings.Join(d.ProductCatalog.Facets[k], ", "))
 		}
 	}
 }
@@ -331,13 +338,17 @@ func renderBrandContextMarkdown(d BrandContextData) string {
 		pc := d.ProductCatalog
 		b.WriteString("## Products to recommend\n\n")
 		fmt.Fprintf(&b, "This site has a catalog of **%d products** to recommend directly, each linked to its own page — never a competitor.\n", pc.Count)
-		if len(pc.Regions) > 0 {
-			fmt.Fprintf(&b, "- Regions: %s\n", strings.Join(pc.Regions, ", "))
+		if len(pc.Facets) > 0 {
+			b.WriteString("\nFilterable fields:\n")
+			for _, k := range sortedKeys(pc.Facets) {
+				vals := pc.Facets[k]
+				if len(vals) > 12 {
+					vals = append(append([]string{}, vals[:12]...), "…")
+				}
+				fmt.Fprintf(&b, "- **%s**: %s\n", k, strings.Join(vals, ", "))
+			}
 		}
-		if len(pc.Categories) > 0 {
-			fmt.Fprintf(&b, "- Categories: %s\n", strings.Join(pc.Categories, ", "))
-		}
-		b.WriteString("\nOnce you know the article's region/topic, fetch the relevant products with `xseek products <website> --region <region>` (or `--category <category>`) and recommend 3-8 of them by name, each linked to its own URL. Never invent products not in the catalog.\n\n")
+		b.WriteString("\nOnce you know the article's topic, fetch the relevant products with `xseek products <website> --<field> <value>` (e.g. `--region charlevoix`, `--capacity 2`) and recommend 3-8 of them by name, each linked to its own URL. Never invent products not in the catalog.\n\n")
 	}
 
 	if len(d.BrandVoiceSamples) > 0 {
