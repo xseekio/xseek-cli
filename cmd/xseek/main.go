@@ -79,7 +79,8 @@ var commandHelp = map[string]string{
 	"prompt-runs":    "Usage: xseek prompt-runs <website> <promptId>\n\nShow the latest runs for a specific prompt.\n\nFlags:\n  --pageSize N     Number of results (default 10)\n  --format json    Output as JSON",
 	"leaderboard":    "Usage: xseek leaderboard <website>\n\nShow the brand mention leaderboard across all prompts.\n\nFlags:\n  --days N         Time window in days (default 30)\n  --format json    Output as JSON",
 	"sources":        "Usage: xseek sources <website>\n\nList AI citation sources — the URLs that AI models cite when mentioning your brand.\n\nFlags:\n  --days N         Filter sources from the last N days (e.g. 1, 7, 30)\n  --pageSize N     Number of results (default 20)\n  --search <term>  Filter by URL, domain, or title\n  --format json    Output as JSON",
-	"opportunities":  "Usage: xseek opportunities <website>\n\nList content gap opportunities found by AI analysis.\n\nFlags:\n  --value <level>  Filter by business value: critical, high, medium, low\n  --type <type>    Filter by content type: blog, comparison, howto, faq\n  --pageSize N     Max number of results (default 50)\n  --format json    Output as JSON",
+	"opportunities":  "Usage: xseek opportunities <website>\n\nList content gap opportunities found by AI analysis.\n\nFlags:\n  --value <level>  Filter by business value: critical, high, medium, low\n  --type <type>    Filter by content type: blog, comparison, howto, faq\n  --status <s>     Filter by status: open, in_progress, completed, dismissed\n  --pageSize N     Max number of results (default 50)\n  --format json    Output as JSON",
+	"cannibalization": "Usage: xseek cannibalization <website>\n\nFind tracked questions where 2+ of your own URLs are cited (authority split),\nwith a canonical/keep/fold verdict per URL to drive a CONSOLIDATE action.\n\nFlags:\n  --min-urls N     Minimum distinct URLs to flag a cluster (default 2)\n  --days N         Lookback window in days (default 45)\n  --format json    Output as JSON",
 	"search-metrics": "Usage: xseek search-metrics <website>\n\nShow GSC page-level metrics (impressions, clicks, position).\n\nFlags:\n  --pageSize N     Number of results (default 20)\n  --sortBy <field> Sort by: impressions, clicks, position, ctr\n  --search <term>  Filter by URL\n  --format json    Output as JSON",
 	"search-queries": "Usage: xseek search-queries <website>\n\nShow GSC search queries driving traffic.\n\nFlags:\n  --pageSize N     Number of results (default 20)\n  --sortBy <field> Sort by: impressions, clicks, position, ctr\n  --url <url>      Filter by page URL\n  --format json    Output as JSON",
 	"sitemap-pages":  "Usage: xseek sitemap-pages <website>\n\nShow sitemap pages with AI visit and GSC data.\n\nFlags:\n  --days N         Time range in days (default 30)\n  --filter <type>  Filter type: \"attention\" for pages with dropping AI traffic\n  --format json    Output as JSON",
@@ -241,7 +242,14 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Usage: xseek opportunities <website>")
 			os.Exit(1)
 		}
-		commands.ListOpportunities(args[1], flags["value"], flags["type"], flags["pageSize"])
+		commands.ListOpportunities(args[1], flags["value"], flags["type"], flags["pageSize"], flags["status"])
+
+	case "cannibalization":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "Usage: xseek cannibalization <website>")
+			os.Exit(1)
+		}
+		commands.ListCannibalization(args[1], flags["min-urls"], flags["days"])
 
 	case "search-metrics":
 		if len(args) < 2 {

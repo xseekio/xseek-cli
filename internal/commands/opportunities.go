@@ -41,7 +41,7 @@ type OpportunitiesResponse struct {
 	} `json:"data"`
 }
 
-func ListOpportunities(websiteID string, businessValue string, contentType string, limit string) {
+func ListOpportunities(websiteID string, businessValue string, contentType string, limit string, status string) {
 	client, err := api.NewClient()
 	if err != nil {
 		exitError(err.Error())
@@ -58,6 +58,9 @@ func ListOpportunities(websiteID string, businessValue string, contentType strin
 	}
 	if limit != "" {
 		params["limit"] = limit
+	}
+	if status != "" {
+		params["status"] = status
 	}
 
 	var result OpportunitiesResponse
