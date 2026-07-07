@@ -34,19 +34,30 @@ type Audience struct {
 	Topics      []AudienceTopic `json:"topics"`
 }
 
+// ProductCatalog is a lightweight index of the client's product catalog —
+// enough to know it exists and how to filter it via `xseek products`.
+type ProductCatalog struct {
+	Count      int      `json:"count"`
+	Regions    []string `json:"regions"`
+	Categories []string `json:"categories"`
+}
+
+type BrandContextData struct {
+	CompanyName          *string         `json:"companyName"`
+	WebsiteURL           string          `json:"websiteUrl"`
+	Language             string          `json:"language"`
+	BrandVoiceGuidelines *string         `json:"brandVoiceGuidelines"`
+	BrandTone            *string         `json:"brandTone"`
+	BrandIdentity        *BrandIdentity  `json:"brandIdentity"`
+	Audiences            []Audience      `json:"audiences"`
+	KnowledgeChunks      []string        `json:"knowledgeChunks"`
+	BrandVoiceSamples    []string        `json:"brandVoiceSamples"`
+	ProductCatalog       *ProductCatalog `json:"productCatalog"`
+}
+
 type BrandContextResponse struct {
-	Success bool `json:"success"`
-	Data    struct {
-		CompanyName          *string        `json:"companyName"`
-		WebsiteURL           string         `json:"websiteUrl"`
-		Language             string         `json:"language"`
-		BrandVoiceGuidelines *string        `json:"brandVoiceGuidelines"`
-		BrandTone            *string        `json:"brandTone"`
-		BrandIdentity        *BrandIdentity `json:"brandIdentity"`
-		Audiences            []Audience     `json:"audiences"`
-		KnowledgeChunks      []string       `json:"knowledgeChunks"`
-		BrandVoiceSamples    []string       `json:"brandVoiceSamples"`
-	} `json:"data"`
+	Success bool             `json:"success"`
+	Data    BrandContextData `json:"data"`
 }
 
 func GetBrandContext(websiteID string) {
@@ -78,17 +89,7 @@ func GetBrandContext(websiteID string) {
 	renderBrandContextHuman(d)
 }
 
-func renderBrandContextHuman(d struct {
-	CompanyName          *string        `json:"companyName"`
-	WebsiteURL           string         `json:"websiteUrl"`
-	Language             string         `json:"language"`
-	BrandVoiceGuidelines *string        `json:"brandVoiceGuidelines"`
-	BrandTone            *string        `json:"brandTone"`
-	BrandIdentity        *BrandIdentity `json:"brandIdentity"`
-	Audiences            []Audience     `json:"audiences"`
-	KnowledgeChunks      []string       `json:"knowledgeChunks"`
-	BrandVoiceSamples    []string       `json:"brandVoiceSamples"`
-}) {
+func renderBrandContextHuman(d BrandContextData) {
 	fmt.Println("Brand Context")
 	fmt.Println(strings.Repeat("─", 60))
 
@@ -197,21 +198,22 @@ func renderBrandContextHuman(d struct {
 			fmt.Printf("  [%d] %s\n", i+1, preview)
 		}
 	}
+
+	if d.ProductCatalog != nil && d.ProductCatalog.Count > 0 {
+		fmt.Println()
+		fmt.Printf("Product Catalog: %d products\n", d.ProductCatalog.Count)
+		if len(d.ProductCatalog.Regions) > 0 {
+			fmt.Printf("  Regions:    %s\n", strings.Join(d.ProductCatalog.Regions, ", "))
+		}
+		if len(d.ProductCatalog.Categories) > 0 {
+			fmt.Printf("  Categories: %s\n", strings.Join(d.ProductCatalog.Categories, ", "))
+		}
+	}
 }
 
 // renderBrandContextMarkdown produces a single brand brief that AI agents
 // (Claude Code skills, MCP tools) can paste directly into prompts.
-func renderBrandContextMarkdown(d struct {
-	CompanyName          *string        `json:"companyName"`
-	WebsiteURL           string         `json:"websiteUrl"`
-	Language             string         `json:"language"`
-	BrandVoiceGuidelines *string        `json:"brandVoiceGuidelines"`
-	BrandTone            *string        `json:"brandTone"`
-	BrandIdentity        *BrandIdentity `json:"brandIdentity"`
-	Audiences            []Audience     `json:"audiences"`
-	KnowledgeChunks      []string       `json:"knowledgeChunks"`
-	BrandVoiceSamples    []string       `json:"brandVoiceSamples"`
-}) string {
+func renderBrandContextMarkdown(d BrandContextData) string {
 	var b strings.Builder
 
 	companyLabel := d.WebsiteURL
@@ -323,6 +325,19 @@ func renderBrandContextMarkdown(d struct {
 		for i, chunk := range d.KnowledgeChunks {
 			fmt.Fprintf(&b, "### Entry %d\n\n%s\n\n", i+1, chunk)
 		}
+	}
+
+	if d.ProductCatalog != nil && d.ProductCatalog.Count > 0 {
+		pc := d.ProductCatalog
+		b.WriteString("## Products to recommend\n\n")
+		fmt.Fprintf(&b, "This site has a catalog of **%d products** to recommend directly, each linked to its own page — never a competitor.\n", pc.Count)
+		if len(pc.Regions) > 0 {
+			fmt.Fprintf(&b, "- Regions: %s\n", strings.Join(pc.Regions, ", "))
+		}
+		if len(pc.Categories) > 0 {
+			fmt.Fprintf(&b, "- Categories: %s\n", strings.Join(pc.Categories, ", "))
+		}
+		b.WriteString("\nOnce you know the article's region/topic, fetch the relevant products with `xseek products <website> --region <region>` (or `--category <category>`) and recommend 3-8 of them by name, each linked to its own URL. Never invent products not in the catalog.\n\n")
 	}
 
 	if len(d.BrandVoiceSamples) > 0 {
