@@ -2,6 +2,7 @@ package commands
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -59,7 +60,19 @@ func CloudStart(port string, noBrowser bool) {
 		xseekPath = "xseek" // fallback
 	}
 
-	// 4. Write .mcp.json — uses xseek channel-server (embedded, no Node.js needed)
+	// 4. Write channel-ui MCP config to an xSeek-owned, Claude-only path.
+	//
+	// Previously we wrote into <cwd>/.mcp.json AND ~/.mcp.json. That broke
+	// Codex users: .mcp.json is the standard MCP config path that Codex
+	// (and other MCP clients) ALSO read, so they tried to spawn channel-ui
+	// — a server designed for Claude Code's --dangerously-load-development-
+	// channels flow — and failed with handshake errors on every launch.
+	//
+	// Solution: write to ~/.xseek/claude-channel.mcp.json and pass it to
+	// Claude Code via --mcp-config. Claude merges this file with its other
+	// MCP sources; Codex never sees it.
+	home, _ := os.UserHomeDir()
+	claudeMcpPath := filepath.Join(home, ".xseek", "claude-channel.mcp.json")
 	mcpConfig := map[string]interface{}{
 		"mcpServers": map[string]interface{}{
 			"channel-ui": map[string]interface{}{
@@ -71,47 +84,82 @@ func CloudStart(port string, noBrowser bool) {
 			},
 		},
 	}
-
-	cwd, _ := os.Getwd()
-	mcpPath := filepath.Join(cwd, ".mcp.json")
-
-	// Always update channel-ui entry
-	if existing, err := os.ReadFile(mcpPath); err == nil {
-		var existingConfig map[string]interface{}
-		if json.Unmarshal(existing, &existingConfig) == nil {
-			if servers, ok := existingConfig["mcpServers"].(map[string]interface{}); ok {
-				servers["channel-ui"] = mcpConfig["mcpServers"].(map[string]interface{})["channel-ui"]
-				mcpConfig = existingConfig
-			}
-		}
-	}
-
 	mcpJSON, _ := json.MarshalIndent(mcpConfig, "", "  ")
-	if err := os.WriteFile(mcpPath, mcpJSON, 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: could not write .mcp.json: %s\n", err)
+	if err := os.MkdirAll(filepath.Dir(claudeMcpPath), 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not create %s: %s\n", filepath.Dir(claudeMcpPath), err)
+	}
+	if err := os.WriteFile(claudeMcpPath, mcpJSON, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not write %s: %s\n", claudeMcpPath, err)
 	}
 
-	// Also update global ~/.mcp.json if it has a stale channel-ui entry
-	home, _ := os.UserHomeDir()
-	globalMcpPath := filepath.Join(home, ".mcp.json")
-	if existing, err := os.ReadFile(globalMcpPath); err == nil {
-		var globalConfig map[string]interface{}
-		if json.Unmarshal(existing, &globalConfig) == nil {
-			if servers, ok := globalConfig["mcpServers"].(map[string]interface{}); ok {
-				if _, has := servers["channel-ui"]; has {
-					channelEntry := map[string]interface{}{
-						"command": xseekPath,
-						"args":    []string{"channel-server", "--port", port},
-						"env":     map[string]string{"CHANNEL_UI_PORT": port},
-					}
-					servers["channel-ui"] = channelEntry
-					// Also remove stale "channelui" if present
-					delete(servers, "channelui")
-					data, _ := json.MarshalIndent(globalConfig, "", "  ")
-					os.WriteFile(globalMcpPath, data, 0644)
-				}
+	// Best-effort cleanup of legacy entries that previous CLI versions wrote
+	// into Codex-visible paths. Silently scrub channel-ui from <cwd>/.mcp.json
+	// and ~/.mcp.json so existing Codex installs stop warning on next launch.
+	// We don't delete the files entirely — they may have unrelated entries.
+	cwd, _ := os.Getwd()
+	for _, p := range []string{
+		filepath.Join(cwd, ".mcp.json"),
+		filepath.Join(home, ".mcp.json"),
+	} {
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			continue
+		}
+		var cfg map[string]interface{}
+		if json.Unmarshal(raw, &cfg) != nil {
+			continue
+		}
+		servers, ok := cfg["mcpServers"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		_, has := servers["channel-ui"]
+		_, hasStale := servers["channelui"]
+		if !has && !hasStale {
+			continue
+		}
+		delete(servers, "channel-ui")
+		delete(servers, "channelui")
+		// Only rewrite if there are still other servers to preserve; if the
+		// file ends up empty of MCP entries, leave it as a `{ "mcpServers": {} }`
+		// shell rather than deleting it, in case other tooling expects it.
+		data, _ := json.MarshalIndent(cfg, "", "  ")
+		os.WriteFile(p, data, 0644)
+	}
+
+	// Also scrub channel-ui from any Codex TOML config we can find. Codex
+	// reads <cwd>/.codex/config.toml and ~/.codex/config.toml; if channel-ui
+	// is registered there (legacy from prior CLI versions) Codex will try to
+	// validate it on every launch and emit a handshake warning. We strip the
+	// `[mcp_servers.channel-ui]` and `[mcp_servers.channel-ui.env]` tables
+	// in-place — naive line scan, but safe enough since these tables are
+	// flat and our own writer never produced anything fancier.
+	for _, p := range []string{
+		filepath.Join(cwd, ".codex", "config.toml"),
+		filepath.Join(home, ".codex", "config.toml"),
+	} {
+		raw, err := os.ReadFile(p)
+		if err != nil || !bytes.Contains(raw, []byte("mcp_servers.channel-ui")) {
+			continue
+		}
+		var out bytes.Buffer
+		skip := false
+		for _, line := range strings.Split(string(raw), "\n") {
+			trim := strings.TrimSpace(line)
+			if strings.HasPrefix(trim, "[mcp_servers.channel-ui]") ||
+				strings.HasPrefix(trim, "[mcp_servers.channel-ui.") {
+				skip = true
+				continue
+			}
+			if skip && strings.HasPrefix(trim, "[") {
+				skip = false
+			}
+			if !skip {
+				out.WriteString(line)
+				out.WriteString("\n")
 			}
 		}
+		os.WriteFile(p, bytes.TrimRight(out.Bytes(), "\n"), 0644)
 	}
 
 	fmt.Println("xSeek Cloud")
@@ -130,10 +178,13 @@ func CloudStart(port string, noBrowser bool) {
 		}()
 	}
 
-	// 6. Launch Claude Code with channel
+	// 6. Launch Claude Code with channel. --mcp-config points at the
+	// xSeek-owned Claude-only config so Codex and other MCP clients
+	// don't try to spawn channel-ui themselves.
 	cmd := exec.Command(claudePath,
 		"--dangerously-skip-permissions",
 		"--chrome",
+		"--mcp-config", claudeMcpPath,
 		"--dangerously-load-development-channels",
 		"server:channel-ui",
 	)
