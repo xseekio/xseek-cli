@@ -37,7 +37,18 @@ var skillDefinitions = []struct {
 	{"weekly-report", "weekly-report.md", "Weekly AI visibility and SEO performance report. Run this when a user asks for a status update or weekly summary.", ""},
 	{"writing-rules", "writing-rules.md", "Human-like writing rules for AI content. Referenced by other skills — not invoked directly.", ""},
 	{"geo-methods", "geo-methods.md", "Princeton GEO optimization methods with examples and domain tips. Referenced by other skills — not invoked directly.", ""},
+	{"screenshots", "screenshots.md", "How to capture landing pages through the xSeek images API and report screenshot coverage. Referenced by other skills — not invoked directly.", ""},
 }
+
+// referenceSkills are read BY other skills, never invoked as slash commands.
+// They install with disable-model-invocation and stay out of the command list.
+var referenceSkills = map[string]bool{
+	"writing-rules": true,
+	"geo-methods":   true,
+	"screenshots":   true,
+}
+
+func isReferenceSkill(name string) bool { return referenceSkills[name] }
 
 func Init() {
 	home, err := os.UserHomeDir()
@@ -74,7 +85,7 @@ func Init() {
 			continue
 		}
 
-		if skill.Name == "writing-rules" || skill.Name == "geo-methods" {
+		if isReferenceSkill(skill.Name) {
 			fmt.Printf("  ✓ %s (reference)\n", skill.Name)
 		} else {
 			fmt.Printf("  ✓ /%s\n", skill.Name)
@@ -89,7 +100,7 @@ func Init() {
 		"find-opportunities": true, "generate-article": true, "geo-methods": true,
 		"optimize-page": true, "publish-articles": true, "rewrite-page": true,
 		"track-visibility": true, "weekly-report": true, "writing-rules": true,
-		"analyze": true,
+		"screenshots": true, "analyze": true,
 	}
 	knownSkills := make(map[string]bool)
 	for _, skill := range skillDefinitions {
@@ -159,7 +170,7 @@ func buildSkillFile(name, description, argHint, content string) string {
 		sb.WriteString(fmt.Sprintf("argument-hint: %s\n", argHint))
 	}
 	// Reference files are not invoked directly as slash commands
-	if name == "writing-rules" || name == "geo-methods" {
+	if isReferenceSkill(name) {
 		sb.WriteString("disable-model-invocation: true\n")
 	}
 	sb.WriteString("---\n\n")
@@ -272,7 +283,7 @@ func ListSkills() {
 		return
 	}
 
-	referenceFiles := map[string]bool{"writing-rules": true, "geo-methods": true}
+	referenceFiles := referenceSkills
 
 	fmt.Println("xSeek Skills for Claude Code")
 	fmt.Println(strings.Repeat("─", 50))

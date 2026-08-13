@@ -93,6 +93,13 @@ func ListProducts(websiteID string, flags map[string]string) {
 			if m := meta(p, ", "); m != "" {
 				fmt.Fprintf(&b, " — %s", m)
 			}
+			// The catalog image is the best visual for a B2C product: a framed
+			// photo the client already chose, not a screenshot of the page it
+			// sits on. It was in the API response all along and printed
+			// nowhere, so no article ever used one.
+			if p.ImageURL != "" {
+				fmt.Fprintf(&b, "\n  image: %s", p.ImageURL)
+			}
 			b.WriteString("\n")
 		}
 		fmt.Print(b.String())
@@ -106,6 +113,9 @@ func ListProducts(websiteID string, flags map[string]string) {
 		fmt.Printf("    %s\n", p.URL)
 		if m := meta(p, " | "); m != "" {
 			fmt.Printf("    %s\n", m)
+		}
+		if p.ImageURL != "" {
+			fmt.Printf("    image: %s\n", p.ImageURL)
 		}
 	}
 }

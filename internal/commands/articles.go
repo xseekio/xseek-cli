@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -51,6 +52,15 @@ type ArticleCreateResponse struct {
 		Status       string  `json:"status"`
 		QualityScore *int    `json:"qualityScore"`
 		CreatedAt    string  `json:"createdAt"`
+		// Screenshot coverage as the server recorded it: brands named vs
+		// brands carrying a capture. Printed back so the caller can compare
+		// it against the article instead of assuming the payload landed.
+		VisualCoverage struct {
+			Named    int  `json:"named"`
+			Captured int  `json:"captured"`
+			Missing  int  `json:"missing"`
+			Rate     *int `json:"rate"`
+		} `json:"visualCoverage"`
 	} `json:"data"`
 }
 
@@ -110,7 +120,28 @@ func ListArticles(websiteID string, status string, pageSize string) {
 	fmt.Printf("\nShowing %d of %d articles\n", len(articles), result.Data.Pagination.Total)
 }
 
-func PushArticle(websiteID string, title string, filePath string, status string, metaDescription string, keywordTerm string, keywords string, opportunityID string) {
+// loadVisuals reads the screenshot coverage record written by the
+// /screenshots skill: one entry per brand the article names, including the
+// ones that got no capture and why. Bad JSON is a warning, never a failure.
+// The article is the deliverable; this is the audit trail beside it.
+func loadVisuals(path string) []interface{} {
+	if path == "" {
+		return nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: --visuals %s could not be read (%s); pushing without the coverage record\n", path, err)
+		return nil
+	}
+	var list []interface{}
+	if err := json.Unmarshal(data, &list); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: --visuals %s is not a JSON array (%s); pushing without the coverage record\n", path, err)
+		return nil
+	}
+	return list
+}
+
+func PushArticle(websiteID string, title string, filePath string, status string, metaDescription string, keywordTerm string, keywords string, opportunityID string, visualsPath string) {
 	if title == "" {
 		exitError("--title is required")
 	}
@@ -175,6 +206,9 @@ func PushArticle(websiteID string, title string, filePath string, status string,
 	if opportunityID != "" {
 		body["opportunityId"] = opportunityID
 	}
+	if visuals := loadVisuals(visualsPath); len(visuals) > 0 {
+		body["visuals"] = visuals
+	}
 
 	var result ArticleCreateResponse
 	err = client.PostJSON(fmt.Sprintf("/websites/%s/articles", websiteID), body, &result)
@@ -195,6 +229,13 @@ func PushArticle(websiteID string, title string, filePath string, status string,
 	fmt.Printf("  ID:     %s\n", result.Data.ID)
 	fmt.Printf("  Title:  %s\n", result.Data.Title)
 	fmt.Printf("  Status: %s\n", result.Data.Status)
+	if c := result.Data.VisualCoverage; c.Named > 0 {
+		fmt.Printf("  Visuals: %d/%d brands captured", c.Captured, c.Named)
+		if c.Missing > 0 {
+			fmt.Printf(" (%d recorded without a screenshot)", c.Missing)
+		}
+		fmt.Println()
+	}
 }
 
 func GetArticle(websiteID string, articleID string) {
@@ -233,7 +274,7 @@ func GetArticle(websiteID string, articleID string) {
 	}
 }
 
-func UpdateArticle(websiteID string, articleID string, filePath string, title string, status string, metaDescription string, opportunityID string) {
+func UpdateArticle(websiteID string, articleID string, filePath string, title string, status string, metaDescription string, opportunityID string, visualsPath string) {
 	client, err := api.NewClient()
 	if err != nil {
 		exitError(err.Error())
@@ -283,8 +324,12 @@ func UpdateArticle(websiteID string, articleID string, filePath string, title st
 		}
 	}
 
+	if visuals := loadVisuals(visualsPath); len(visuals) > 0 {
+		body["visuals"] = visuals
+	}
+
 	if len(body) == 0 {
-		exitError("nothing to update — provide content (--file or stdin), --title, --status, --meta-description, or --opportunity-id")
+		exitError("nothing to update — provide content (--file or stdin), --title, --status, --meta-description, --opportunity-id, or --visuals")
 	}
 
 	var result ArticleResponse
