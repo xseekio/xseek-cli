@@ -141,7 +141,7 @@ func loadVisuals(path string) []interface{} {
 	return list
 }
 
-func PushArticle(websiteID string, title string, filePath string, status string, metaDescription string, keywordTerm string, keywords string, opportunityID string, visualsPath string) {
+func PushArticle(websiteID string, title string, filePath string, status string, metaDescription string, keywordTerm string, keywords string, opportunityID string, visualsPath string, description string, metaTitle string) {
 	if title == "" {
 		exitError("--title is required")
 	}
@@ -185,6 +185,15 @@ func PushArticle(websiteID string, title string, filePath string, status string,
 	}
 	if metaDescription != "" {
 		body["metaDescription"] = metaDescription
+	}
+	// Four fields, two audiences: title/description are page copy for a reader
+	// who already arrived; metaTitle/metaDescription are the tags, read in a
+	// search result or by an engine deciding whether to cite.
+	if description != "" {
+		body["description"] = description
+	}
+	if metaTitle != "" {
+		body["metaTitle"] = metaTitle
 	}
 	if keywordTerm != "" {
 		body["keywordTerm"] = keywordTerm
@@ -274,7 +283,7 @@ func GetArticle(websiteID string, articleID string) {
 	}
 }
 
-func UpdateArticle(websiteID string, articleID string, filePath string, title string, status string, metaDescription string, opportunityID string, visualsPath string) {
+func UpdateArticle(websiteID string, articleID string, filePath string, title string, status string, metaDescription string, opportunityID string, visualsPath string, description string, metaTitle string) {
 	client, err := api.NewClient()
 	if err != nil {
 		exitError(err.Error())
@@ -313,6 +322,12 @@ func UpdateArticle(websiteID string, articleID string, filePath string, title st
 	}
 	if metaDescription != "" {
 		body["metaDescription"] = metaDescription
+	}
+	if description != "" {
+		body["description"] = description
+	}
+	if metaTitle != "" {
+		body["metaTitle"] = metaTitle
 	}
 	if opportunityID != "" {
 		// Pass empty string ("") via "none" sentinel if you ever need to unlink;
