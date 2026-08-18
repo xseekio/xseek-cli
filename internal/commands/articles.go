@@ -61,6 +61,15 @@ type ArticleCreateResponse struct {
 			Missing  int  `json:"missing"`
 			Rate     *int `json:"rate"`
 		} `json:"visualCoverage"`
+		// What the article asserts vs what carries a source. An invented price
+		// reads exactly like a checked one, so this is the only place the
+		// difference shows.
+		ClaimCoverage struct {
+			Stated                int `json:"stated"`
+			Verified              int `json:"verified"`
+			Unverified            int `json:"unverified"`
+			UnsourcedAttributions int `json:"unsourcedAttributions"`
+		} `json:"claimCoverage"`
 	} `json:"data"`
 }
 
@@ -124,6 +133,26 @@ func ListArticles(websiteID string, status string, pageSize string) {
 // /screenshots skill: one entry per brand the article names, including the
 // ones that got no capture and why. Bad JSON is a warning, never a failure.
 // The article is the deliverable; this is the audit trail beside it.
+// loadJSONArray reads a coverage record the skill wrote: one entry per thing
+// the article claims or should have captured. Bad JSON is a warning, never a
+// failure. The article is the deliverable; these are the audit trail beside it.
+func loadJSONArray(path, flag string) []interface{} {
+	if path == "" {
+		return nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: %s %s could not be read (%s); pushing without it\n", flag, path, err)
+		return nil
+	}
+	var list []interface{}
+	if err := json.Unmarshal(data, &list); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: %s %s is not a JSON array (%s); pushing without it\n", flag, path, err)
+		return nil
+	}
+	return list
+}
+
 func loadVisuals(path string) []interface{} {
 	if path == "" {
 		return nil
@@ -141,7 +170,7 @@ func loadVisuals(path string) []interface{} {
 	return list
 }
 
-func PushArticle(websiteID string, title string, filePath string, status string, metaDescription string, keywordTerm string, keywords string, opportunityID string, visualsPath string, description string, metaTitle string) {
+func PushArticle(websiteID string, title string, filePath string, status string, metaDescription string, keywordTerm string, keywords string, opportunityID string, visualsPath string, description string, metaTitle string, claimsPath string) {
 	if title == "" {
 		exitError("--title is required")
 	}
@@ -218,6 +247,9 @@ func PushArticle(websiteID string, title string, filePath string, status string,
 	if visuals := loadVisuals(visualsPath); len(visuals) > 0 {
 		body["visuals"] = visuals
 	}
+	if claims := loadJSONArray(claimsPath, "--claims"); len(claims) > 0 {
+		body["claims"] = claims
+	}
 
 	var result ArticleCreateResponse
 	err = client.PostJSON(fmt.Sprintf("/websites/%s/articles", websiteID), body, &result)
@@ -238,6 +270,13 @@ func PushArticle(websiteID string, title string, filePath string, status string,
 	fmt.Printf("  ID:     %s\n", result.Data.ID)
 	fmt.Printf("  Title:  %s\n", result.Data.Title)
 	fmt.Printf("  Status: %s\n", result.Data.Status)
+	if c := result.Data.ClaimCoverage; c.Stated > 0 {
+		fmt.Printf("  Claims:  %d/%d sourced", c.Verified, c.Stated)
+		if c.UnsourcedAttributions > 0 {
+			fmt.Printf(" · %d credited to a named source with NO link", c.UnsourcedAttributions)
+		}
+		fmt.Println()
+	}
 	if c := result.Data.VisualCoverage; c.Named > 0 {
 		fmt.Printf("  Visuals: %d/%d brands captured", c.Captured, c.Named)
 		if c.Missing > 0 {
@@ -283,7 +322,7 @@ func GetArticle(websiteID string, articleID string) {
 	}
 }
 
-func UpdateArticle(websiteID string, articleID string, filePath string, title string, status string, metaDescription string, opportunityID string, visualsPath string, description string, metaTitle string) {
+func UpdateArticle(websiteID string, articleID string, filePath string, title string, status string, metaDescription string, opportunityID string, visualsPath string, description string, metaTitle string, claimsPath string) {
 	client, err := api.NewClient()
 	if err != nil {
 		exitError(err.Error())
@@ -341,6 +380,9 @@ func UpdateArticle(websiteID string, articleID string, filePath string, title st
 
 	if visuals := loadVisuals(visualsPath); len(visuals) > 0 {
 		body["visuals"] = visuals
+	}
+	if claims := loadJSONArray(claimsPath, "--claims"); len(claims) > 0 {
+		body["claims"] = claims
 	}
 
 	if len(body) == 0 {
