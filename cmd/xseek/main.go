@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/xseekio/xseek-cli/internal/api"
 	"github.com/xseekio/xseek-cli/internal/channel"
@@ -39,6 +40,7 @@ Commands:
   web-searches <website>            LLM web searches behind prompts
   keywords <website> "<topic>"      Keyword research via DataForSEO
   brand-context <website>           Brand voice, tone, and knowledge base
+  site-pages <website> [--<filter> <value>]...  Crawled pages as an AI bot reads them (any API filter)
   products <website>                Your product catalog (recommend in B2C content)
   content search <website> --q ".."  Does this site ALREADY cover a subject?
   content conflicts <website>        Articles given the same primary keyword
@@ -94,6 +96,7 @@ var commandHelp = map[string]string{
 	"keywords":          "Usage: xseek keywords <website> \"<topic>\"\n\nResearch keywords for a topic using DataForSEO.\nReturns search volume, keyword difficulty, and related keywords.\nAccepts comma-separated topics (max 10).\n\nExamples:\n  xseek keywords mysite.com \"best crm for small business\"\n  xseek keywords mysite.com \"meilleur crm\" --language fr --location 2124\n  xseek keywords mysite.com \"crm tools\" --format json\n\nFlags:\n  --language <code>  Language code (default: en). Examples: fr, es, de, pt\n  --location <code>  Google location code (default: 2840 = US). Common codes:\n                       2124 = Canada, 2250 = France, 2826 = UK,\n                       2276 = Germany, 2724 = Spain, 2076 = Brazil,\n                       2036 = Australia, 2392 = Japan\n  --format json      Output as JSON",
 	"brand-context":     "Usage: xseek brand-context <website>\n\nGet the brand brief: tone, identity (adjectives, signature/banned words, anchors,\nsurface rules), voice guidelines, audiences, knowledge entries, and style samples.\nUsed by article generation and rewrite skills to match your brand's voice.\n\nFlags:\n  --format markdown   Render as a single brand brief (best for AI agents)\n  --format json       Output the raw structured response",
 	"content":           "Usage: xseek content search <website> [--q \"the question\"] [--kind article|page|knowledge] [--limit <n>] [--min-similarity <0-1>]\n       xseek content conflicts <website>\n\nAsk whether this site already covers a subject, across everything xSeek holds\nfor it, instead of paging a list of titles. `articles list` pages at 20, so on\na site with 399 articles the first page is 5% of the corpus.\n\nWith no --q it returns only the SHAPE of the corpus: how many documents, of\nwhich kind, in which languages.\n\nTwo numbers come back per hit and they are not interchangeable:\n  similarity  cosine, -1..1. THIS is the one to judge on. Above ~0.5 the\n              document is genuinely about the same thing.\n  score       rank fusion. Ordinal only. It orders the list, it does not\n              measure closeness. Never threshold on it.\n\nA match is a starting point, not a verdict. What makes a duplicate is the\nOBJECTIVE, not the vocabulary: same reader, same decision, same competitors\njudged on the same criteria. Read the candidate in full before calling it one.\n\nFlags:\n  --q <query>            The question or subject to check\n  --kind <k>             article | page | knowledge (default: all)\n  --limit <n>            Max results (default 10, max 50)\n  --min-similarity <f>   Cosine floor (default 0.45)\n  --format markdown      Render with excerpts (best for AI agents)\n  --format json          Raw structured response",
+	"site-pages":        "Usage: xseek site-pages <website> [--<filter> <value>]...\n\nThe site's crawled pages as a crawler without JavaScript reads them (GPTBot,\nClaudeBot and PerplexityBot do not run it). Every flag is passed to the API as a\nfilter, so new API filters work without a CLI update.\n\n  no filter                  The site summary: issues, schema types, page kinds,\n                             pages that sell, Google index status, overlaps\n  --url <page>               One page in full (add --markdown true for its content)\n  --sells true               The pages that sell: what an article links to\n  --page-kind <k>            homepage, service, product, pricing, location, about...\n  --q \"<words>\"              Words in the URL, title or H1\n  --issue <code>             e.g. noindex, no_structured_data, hreflang_no_return\n  --schema-type <T>          Pages declaring this JSON-LD type (FAQPage, Product...)\n  --missing-schema-type <T>  2xx pages NOT declaring it\n  --tag <t> [--tag-value false]  hasFaq, hasPricing, answersUpFront...\n  --path-prefix </path/>     Only pages under this path\n  --google-indexed <bool>    Search Console verdict (uninspected pages match neither)\n  --max-own-words <n>        Pages with at most n words of their own\n  --has-overlap true         Pages another page repeats at least half of\n  --page <n> --page-size <n> Paging (page size max 200)\n\nFlags combine. Kebab-case or camelCase both work (--page-kind or --pageKind).\nOutput is the API's JSON as sent (null = unmeasured); --format text for a list.",
 	"products":          "Usage: xseek products <website> [--<field> <value>]... [--q <query>] [--limit <n>]\n\nList your own product catalog (uploaded via CSV in Brand voice → Products).\nFilter on ANY field the client uploaded — region, category, or a custom column\nlike capacity/make/year. See the filterable fields in `xseek brand-context`.\nB2C content recommends these directly with their own URLs instead of competitors.\n\nFlags:\n  --<field> <value>   Filter on any field (e.g. --region charlevoix --capacity 2)\n  --q <query>         Search name/description\n  --limit <n>         Max results (default 50, max 200)\n  --format markdown   Render as a link list (best for AI agents)\n  --format json       Output the raw structured response",
 	"images":            "Usage: xseek images <subcommand> <website> [arguments]\n\nSubcommands:\n  upload <website>   Upload an image (PNG, JPG, WEBP, GIF) and get a public URL\n\nFlags (upload):\n  --file <path>      Path to the image file (required)\n  --alt \"...\"      Alt text for accessibility + SEO\n  --source \"...\"   Provenance tag (e.g. \"competitor-screenshot\", \"product-page\")\n  --format json      Output as JSON\n\nExamples:\n  xseek images upload mysite.com --file ./screenshot.png --alt \"Stripe homepage\" --source competitor-screenshot\n  xseek images upload mysite.com --file ./hero.jpg --alt \"Our product\" --format json",
 	"articles":          "Usage: xseek articles <subcommand> <website> [arguments]\n\nSubcommands:\n  list <website>                    List articles in Content Studio\n  push <website>                    Push a new article\n  get <website> <articleId>         Get article content\n  publish <website> <id> <url>      Mark article as published\n\nFlags (list):\n  --status <status>  Filter by status: draft, ready, published\n  --pageSize N       Number of results (default 20)\n  --format json      Output as JSON\n\nFlags (push):\n  --title \"...\"            Article title (required)\n  --file <path>            Read content from file (alternative to stdin)\n  --status <status>        Article status (default: ready)\n  --meta-description \"...\" Meta description (155 chars, the search snippet)\n  --description \"...\"      On-page lede shown under the H1\n  --meta-title \"...\"       <title> tag (60 chars); defaults to --title\n  --keyword-term \"...\"     Primary target keyword (for opportunities linkage)\n  --keywords \"a, b, c\"     ALL target keywords, comma-separated (primary first, max 10)\n  --opportunity-id <uuid>  Link this article to a specific opportunity ID\n  --visuals <path.json>    Screenshot coverage: one entry per named brand,\n                           including brands with no capture and why\n  --claims <path.json>     Fact record: every price and sourced statistic,\n                           with the URL backing it or why there is none\n  --format json            Output as JSON\n\nExamples:\n  xseek articles list mysite.com\n  cat article.md | xseek articles push mysite.com --title \"My Article\"\n  xseek articles push mysite.com --title \"My Article\" --file article.md\n  xseek articles get mysite.com <id>\n  xseek articles publish mysite.com <id> https://blog.com/article",
@@ -129,6 +132,11 @@ func main() {
 			i++
 		} else if args[i] == "--format=json" {
 			commands.OutputFormat = "json"
+		} else if strings.HasPrefix(args[i], "--format=") {
+			commands.OutputFormat = strings.TrimPrefix(args[i], "--format=")
+		} else if strings.HasPrefix(args[i], "--") && strings.Contains(args[i], "=") {
+			kv := strings.SplitN(args[i][2:], "=", 2)
+			flags[kv[0]] = kv[1]
 		} else if len(args[i]) > 2 && args[i][:2] == "--" && i+1 < len(args) {
 			flags[args[i][2:]] = args[i+1]
 			i++
@@ -336,6 +344,13 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Unknown content subcommand: %s\nRun 'xseek content --help' for usage.\n", args[1])
 			os.Exit(1)
 		}
+
+	case "site-pages":
+		if len(args) < 2 {
+			printCommandHelp("site-pages")
+			os.Exit(1)
+		}
+		commands.SitePages(args[1], flags)
 
 	case "products":
 		if len(args) < 2 {
